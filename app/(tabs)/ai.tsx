@@ -71,7 +71,7 @@ export default function AIScreen() {
   }, [askQuestionModal]);
 
   const handleSubmitQuestion = (question: string) => {
-    router.push(`/ai-insights?question=${question}`);
+    router.push(`/ai-insights-webview?question=${question}`);
   };
 
   return (

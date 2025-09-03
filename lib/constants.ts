@@ -1,3 +1,7 @@
+export const SESSION_KEY = 'auth_session';
+
+export const SESSION_STORE_ID = 'session_store_id';
+
 export const PROMPTS = [
   'What is the total sales revenue for the selected period (daily, weekly, monthly)?',
   'How many transactions were completed within the period?',

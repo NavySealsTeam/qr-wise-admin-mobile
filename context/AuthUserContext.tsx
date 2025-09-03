@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import {
   createContext,
   PropsWithChildren,
@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import { SharedValue, useSharedValue } from 'react-native-reanimated';
+import { SESSION_KEY, SESSION_STORE_ID } from '~/lib/constants';
 import { auth, db } from '~/lib/firebase';
 import { Store, User } from '~/types';
 
@@ -19,6 +20,7 @@ type AuthContextType = {
   loginUser: (user: User) => Promise<void>;
   logoutUser: () => Promise<void>;
   updateUser: (updates: Partial<User>) => Promise<void>;
+  stores: Store[];
   store: Store | null;
   getStore: (storeId?: string) => Promise<void>;
   isPremiumUser: boolean;
@@ -41,6 +43,7 @@ const AuthContext = createContext<AuthContextType>({
   updateUser: () => {
     throw new Error();
   },
+  stores: [],
   store: null,
   getStore: () => {
     throw new Error();
@@ -55,16 +58,18 @@ const AuthContext = createContext<AuthContextType>({
   },
 });
 
-const SESSION_KEY = 'auth_session';
-
 export function AuthProvider({ children }: PropsWithChildren) {
-  const storeId = process.env.EXPO_PUBLIC_STORE_ID;
-
   const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [stores, setStores] = useState<Store[]>([]);
   const [store, setStore] = useState<Store | null>(null);
+  const [storeId, setStoreId] = useState<string | null>(null);
   const [isPremiumUser, setIsPremiumUser] = useState<boolean>(false);
 
   const openSheet = useSharedValue<boolean>(false);
+
+  useEffect(() => {
+    getStores();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -75,6 +80,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => {
+    if (stores.length === 0) return;
+
+    const checkStore = async () => {
+      const storeId = await SecureStore.getItemAsync(SESSION_STORE_ID);
+      if (storeId) {
+        setStoreId(storeId);
+      } else {
+        setStoreId(stores[0].id!);
+        await SecureStore.setItemAsync(SESSION_STORE_ID, stores[0].id!);
+      }
+    };
+
     const checkSession = async () => {
       try {
         const session = await SecureStore.getItemAsync(SESSION_KEY);
@@ -90,13 +107,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
     };
 
+    checkStore();
     checkSession();
-  }, []);
+  }, [stores]);
 
   useEffect(() => {
     if (!storeId) return;
     getStore();
   }, [storeId]);
+
+  async function getStores() {
+    const querySnapshot = await getDocs(collection(db, 'stores'));
+    const stores = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Store[];
+    setStores(stores);
+  }
 
   async function getStore(id?: string) {
     const storeSnapshot = await getDoc(doc(db, 'stores', id || storeId!));
@@ -143,6 +170,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       loginUser,
       logoutUser,
       updateUser,
+      stores,
       store,
       getStore,
       isPremiumUser,
