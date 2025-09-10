@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.qrwise.admin",
+      "bundleIdentifier": "com.qrwise.business",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -21,7 +21,7 @@
         "backgroundColor": "#0C0E12"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.qrwise.admin"
+      "package": "com.qrwise.business"
     },
     "web": {
       "bundler": "metro",

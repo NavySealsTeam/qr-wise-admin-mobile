@@ -17,11 +17,14 @@
         "buildType": "apk"
       }
     },
-    "production": {
+    "production-apk": {
       "autoIncrement": true,
       "android": {
         "buildType": "apk"
       }
+    },
+    "production-aab": {
+      "autoIncrement": true
     }
   },
   "submit": {
