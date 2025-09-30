@@ -54,7 +54,6 @@ export default function LoginScreen() {
     const q = query(
       collection(db, 'managers-pin'),
       where('phone', '==', phoneNumber),
-      where('storeId', '==', store?.id),
     );
     const querySnapshot = await getDocs(q);
 
