@@ -1,8 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import * as Updates from 'expo-updates';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Image, Text, TouchableOpacity, View } from 'react-native';
 import { Path, Svg } from 'react-native-svg';
-import Logo from '~/components/icons/Logo';
 import { useAuth } from '~/context/AuthUserContext';
 import { SESSION_STORE_ID } from '~/lib/constants';
 import { cn } from '~/lib/utils';
@@ -36,8 +35,18 @@ export default function SwitchBranch() {
                 index > 0 && 'border-t border-[#22262F]',
               )}>
               <View className="flex-row items-center gap-4">
-                <View className="rounded-full border border-white">
-                  <Logo />
+                <View className="overflow-hidden rounded-full border border-white">
+                  {store.name.toLowerCase().includes('mabuhay') ? (
+                    <Image
+                      source={require('~/assets/images/punched-mabuhay.png')}
+                      className="size-10"
+                    />
+                  ) : (
+                    <Image
+                      source={require('~/assets/images/punched-johndorf.png')}
+                      className="size-10"
+                    />
+                  )}
                 </View>
                 <Text className="font-OnestMedium text-base text-white">
                   {store.name}

@@ -1,13 +1,8 @@
 import { ImageIcon, InboxIcon } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import {
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle, ClipPath, Defs, G, Path, Rect } from 'react-native-svg';
+import Svg, { ClipPath, Defs, G, Path, Rect } from 'react-native-svg';
 import PlaceholderImage from '~/components/PlaceholderImage';
 import { Input } from '~/components/ui/input';
 import {
@@ -17,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
-import { Switch } from '~/components/ui/switch';
 import { useMenuItemsQuery } from '~/hooks/useMenuItemsQuery';
 import {
   MENU_BEVERAGE_CATEGORIES,
@@ -264,7 +258,7 @@ export default function Overview() {
                     className="rounded-[20px]"
                   />
                 )}
-                <TouchableOpacity className="absolute bottom-1 right-1">
+                {/* <TouchableOpacity className="absolute bottom-1 right-1">
                   <Svg width="38" height="38" viewBox="0 0 38 38" fill="none">
                     <Circle cx="19" cy="19" r="19" fill="#22262F" />
                     <Path
@@ -275,7 +269,7 @@ export default function Overview() {
                       strokeLinejoin="round"
                     />
                   </Svg>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
               </View>
               <View className="mt-4 flex-row items-center justify-between gap-4">
                 <View className="flex-1 gap-1">
@@ -288,11 +282,11 @@ export default function Overview() {
                     {formatPrice(formatStringToNumber(item.price))}
                   </Text>
                 </View>
-                <Switch
+                {/* <Switch
                   className={cn(item.enabled && 'bg-[#78B300]')}
                   checked={item.enabled}
                   onCheckedChange={(checked) => console.log(checked)}
-                />
+                /> */}
               </View>
             </View>
           ))}

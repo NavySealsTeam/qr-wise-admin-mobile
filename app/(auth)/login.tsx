@@ -31,7 +31,7 @@ import { db } from '~/lib/firebase';
 import { generateOTP } from '~/lib/utils';
 
 export default function LoginScreen() {
-  const { store, loginUser } = useAuth();
+  const { loginUser } = useAuth();
   const { showSnackbar } = useSnackbar();
 
   const otpInput = useRef<OTPTextInput>(null);
@@ -102,7 +102,7 @@ export default function LoginScreen() {
         const res = await fetch('https://admin.qrwise.com/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone: phoneNumber, otp, storeId: store?.id }),
+          body: JSON.stringify({ phone: phoneNumber, otp }),
         });
         if (!res.ok) throw new Error('Login failed');
 
@@ -168,7 +168,7 @@ export default function LoginScreen() {
                 <View className="mt-6">
                   <Input
                     autoFocus
-                    className="pl-11"
+                    className="pl-12"
                     defaultValue="9175553474"
                     value={phoneNumber}
                     onChangeText={setPhoneNumber}
@@ -177,8 +177,10 @@ export default function LoginScreen() {
                     onSubmitEditing={onPressSendOTP}
                     returnKeyType="done"
                   />
-                  <View className="absolute bottom-0 left-3 top-[13px]">
-                    <Text className="text-base text-default-tertiary">+63</Text>
+                  <View className="ios:top-3.5 absolute bottom-0 left-3 top-2.5">
+                    <Text className="text-[16px] text-default-tertiary">
+                      +63
+                    </Text>
                   </View>
                 </View>
               </View>

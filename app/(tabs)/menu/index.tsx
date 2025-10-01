@@ -3,13 +3,11 @@ import {
   Keyboard,
   Platform,
   Text,
-  TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { cn } from '~/lib/utils';
 import Overview from './components/Overview';
 
 type Tab = 'OVERVIEW' | 'GROUP' | 'PAIRING' | 'ADD_ONS' | 'UPSELL';
@@ -38,6 +36,7 @@ export default function MenuScreen() {
             className="flex-1"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{
+              paddingTop: 20,
               paddingBottom: 140,
               paddingHorizontal: 16,
               gap: 20,
@@ -45,7 +44,7 @@ export default function MenuScreen() {
             enableOnAndroid
             extraScrollHeight={Platform.OS === 'ios' ? 80 : 100}
             keyboardShouldPersistTaps="handled">
-            <View className="mt-5 flex-row items-center justify-between rounded-lg border border-[#22262F]">
+            {/* <View className="mt-5 flex-row items-center justify-between rounded-lg border border-[#22262F]">
               {Object.keys(TABS).map((key) => (
                 <TouchableOpacity
                   key={key}
@@ -64,7 +63,7 @@ export default function MenuScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </View> */}
             {tab === 'OVERVIEW' && <Overview />}
           </KeyboardAwareScrollView>
         </TouchableWithoutFeedback>

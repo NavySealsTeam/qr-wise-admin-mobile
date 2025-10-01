@@ -7,6 +7,7 @@ import {
 } from 'lucide-react-native';
 import { useCallback, useRef, useState } from 'react';
 import {
+  Image,
   RefreshControl,
   ScrollView,
   Text,
@@ -19,8 +20,6 @@ import {
 } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import DateTimePicker, { useDefaultStyles } from 'react-native-ui-datepicker';
-import FloatingMenu from '~/components/FloatingMenu';
-import Logo from '~/components/icons/Logo';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +37,7 @@ import TotalSales from './components/TotalSales';
 import TotalTransactionsAndCustomers from './components/TotalTransactionsAndCustomers';
 
 export default function DashboardScreen() {
-  const { user, toggleSheet } = useAuth();
+  const { user, store, toggleSheet } = useAuth();
   const insets = useSafeAreaInsets();
   const contentInsets = {
     top: insets.top,
@@ -136,8 +135,20 @@ export default function DashboardScreen() {
                 />
               </Svg>
             </TouchableOpacity>
-            <TouchableOpacity onPress={toggleSheet}>
-              <Logo />
+            <TouchableOpacity
+              onPress={toggleSheet}
+              className="overflow-hidden rounded-full border border-white">
+              {store?.name.toLowerCase().includes('mabuhay') ? (
+                <Image
+                  source={require('~/assets/images/punched-mabuhay.png')}
+                  className="size-10"
+                />
+              ) : (
+                <Image
+                  source={require('~/assets/images/punched-johndorf.png')}
+                  className="size-10"
+                />
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -167,7 +178,7 @@ export default function DashboardScreen() {
           <Orders date={date} refreshing={refreshing} />
           <ProductMovement date={date} refreshing={refreshing} />
         </ScrollView>
-        <FloatingMenu />
+        {/* <FloatingMenu /> */}
       </SafeAreaView>
     </View>
   );

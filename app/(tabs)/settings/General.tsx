@@ -1,7 +1,6 @@
 import { router } from 'expo-router';
 import { ChevronRightIcon } from 'lucide-react-native';
 import { Text, TouchableOpacity, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import { Button } from '~/components/ui/button';
 import { Separator } from '~/components/ui/separator';
 import { useAuth } from '~/context/AuthUserContext';
@@ -149,7 +148,7 @@ export default function General() {
           </TouchableOpacity>
         </View>
       </View>
-      <View className="gap-2">
+      {/* <View className="gap-2">
         <Text className="font-OnestSemiBold text-default-primary">
           Appearance
         </Text>
@@ -211,7 +210,7 @@ export default function General() {
             </View>
           </TouchableOpacity>
         </View>
-      </View>
+      </View> */}
       <View>
         <Button onPress={logoutUser} variant="destructive">
           <Text className="font-OnestMedium text-default-primary">Logout</Text>
