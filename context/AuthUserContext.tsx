@@ -23,6 +23,7 @@ type AuthContextType = {
   stores: Store[];
   store: Store | null;
   getStore: (storeId?: string) => Promise<void>;
+  setStoreId: (storeId: string) => void;
   isPremiumUser: boolean;
   setIsPremiumUser: (isPremiumUser: boolean) => void;
   openSheet: SharedValue<boolean>;
@@ -46,6 +47,9 @@ const AuthContext = createContext<AuthContextType>({
   stores: [],
   store: null,
   getStore: () => {
+    throw new Error();
+  },
+  setStoreId: () => {
     throw new Error();
   },
   isPremiumUser: false,
@@ -173,6 +177,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       stores,
       store,
       getStore,
+      setStoreId,
       isPremiumUser,
       setIsPremiumUser,
       openSheet,

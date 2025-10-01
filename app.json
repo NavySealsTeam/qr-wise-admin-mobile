@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "QR Wise Admin",
+    "name": "QR Wise",
     "slug": "qr-wise-admin-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/ios-tinted.png",
     "scheme": "qrwiseadminmobile",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -13,7 +13,8 @@
       "bundleIdentifier": "com.qrwise.business",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "icon": "./assets/images/ios-tinted.png"
     },
     "android": {
       "adaptiveIcon": {
@@ -43,7 +44,11 @@
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone."
         }
       ],
-      "expo-video"
+      "expo-video",
+      "expo-build-properties",
+      "expo-font",
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "splash": {
       "image": "./assets/images/splash-icon.png",

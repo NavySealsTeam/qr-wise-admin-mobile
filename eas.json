@@ -27,6 +27,7 @@
       "autoIncrement": true
     },
     "production-ipa": {
+      "autoIncrement": true,
       "distribution": "store",
       "env": {
         "NPM_CONFIG_AUDIT": "false",

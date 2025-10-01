@@ -1,5 +1,4 @@
 import * as SecureStore from 'expo-secure-store';
-import * as Updates from 'expo-updates';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
 import { Path, Svg } from 'react-native-svg';
 import { useAuth } from '~/context/AuthUserContext';
@@ -7,12 +6,15 @@ import { SESSION_STORE_ID } from '~/lib/constants';
 import { cn } from '~/lib/utils';
 
 export default function SwitchBranch() {
-  const { toggleSheet, stores, store } = useAuth();
+  const { toggleSheet, stores, store, setStoreId } = useAuth();
   const storeId = store?.id;
 
   async function handleSwitchBranch(id: string) {
+    setStoreId(id);
+    setTimeout(() => {
+      toggleSheet();
+    }, 500);
     await SecureStore.setItemAsync(SESSION_STORE_ID, id);
-    await Updates.reloadAsync();
   }
 
   return (
