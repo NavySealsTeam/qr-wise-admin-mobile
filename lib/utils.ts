@@ -201,6 +201,10 @@ export function calculateTotals(
   }, 0);
   // end with service charge
 
+  const quantity = orders.reduce((acc, order) => {
+    return acc + order.qty;
+  }, 0);
+
   const totalOrderAmount =
     totalBeverageOrderAmount + totalFoodOrderAmount + totalAddOnsOrderAmount;
   const subtotal = Number(
@@ -264,6 +268,7 @@ export function calculateTotals(
     togoCharge;
 
   return {
+    quantity,
     subtotal,
     vat,
     discounted,
