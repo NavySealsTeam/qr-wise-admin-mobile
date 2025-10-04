@@ -147,6 +147,30 @@ export function calculateTotals(
     return acc + order.qty * addOnPrice;
   }, 0);
 
+  // with service charge
+  const totalBeverageOrderWithServiceChargeAmount = orders.reduce(
+    (acc, order) => {
+      if (
+        order.menu?.category !== 'BEVERAGE' ||
+        order.menu?.hasServiceCharge === false
+      )
+        return acc;
+
+      const selectionPrice = order.options.reduce((acc, option) => {
+        return acc + Number(option.selectionPrice);
+      }, 0);
+      const addOnPrice = (order.addOns || []).reduce((acc, addOn) => {
+        return acc + Number(addOn.price);
+      }, 0);
+
+      return (
+        acc +
+        order.qty * (Number(order.menu?.price) + selectionPrice + addOnPrice)
+      );
+    },
+    0,
+  );
+
   const totalFoodOrderWithServiceChargeAmount = orders.reduce((acc, order) => {
     if (
       order.menu?.category !== 'FOOD' ||
@@ -175,10 +199,7 @@ export function calculateTotals(
 
     return acc + order.qty * addOnPrice;
   }, 0);
-
-  const quantity = orders.reduce((acc, order) => {
-    return acc + order.qty;
-  }, 0);
+  // end with service charge
 
   const totalOrderAmount =
     totalBeverageOrderAmount + totalFoodOrderAmount + totalAddOnsOrderAmount;
@@ -198,7 +219,9 @@ export function calculateTotals(
   );
 
   const totalWithServiceChargeAmount =
-    totalFoodOrderWithServiceChargeAmount + totalAddOnsWithServiceChargeAmount;
+    totalBeverageOrderWithServiceChargeAmount +
+    totalFoodOrderWithServiceChargeAmount +
+    totalAddOnsWithServiceChargeAmount;
   const togoCharge =
     diningOption === 'TO_GO' && totalWithServiceChargeAmount > 0
       ? Number(store?.togoCharge)
@@ -241,7 +264,6 @@ export function calculateTotals(
     togoCharge;
 
   return {
-    quantity,
     subtotal,
     vat,
     discounted,
