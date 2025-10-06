@@ -1,14 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { getAuth, signInWithCustomToken } from 'firebase/auth';
-import {
-  collection,
-  getDocs,
-  query,
-  Timestamp,
-  updateDoc,
-  where,
-} from 'firebase/firestore';
+import { collection, getDocs, query, Timestamp, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -51,10 +44,7 @@ export default function LoginScreen() {
   const onPressSendOTP = async () => {
     setLoading(true);
 
-    const q = query(
-      collection(db, 'managers-pin'),
-      where('phone', '==', phoneNumber),
-    );
+    const q = query(collection(db, 'managers-pin'), where('phone', '==', phoneNumber));
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
@@ -140,9 +130,7 @@ export default function LoginScreen() {
             extraScrollHeight={Platform.OS === 'ios' ? 80 : 100}
             keyboardShouldPersistTaps="handled">
             <View className="flex-row items-center justify-between px-4 py-1">
-              <TouchableOpacity
-                onPress={() => router.back()}
-                className="size-10 items-center justify-center">
+              <TouchableOpacity onPress={() => router.back()} className="size-10 items-center justify-center">
                 <Svg width="32" height="32" viewBox="0 0 32 32" fill="none">
                   <Path
                     d="M0 16C0 7.16344 7.16344 0 16 0C24.8366 0 32 7.16344 32 16C32 24.8366 24.8366 32 16 32C7.16344 32 0 24.8366 0 16Z"
@@ -162,13 +150,11 @@ export default function LoginScreen() {
             </View>
             {step === 'phone' ? (
               <View className="mt-10 px-4">
-                <Text className="font-OnestSemiBold text-[36px] text-white">
-                  Enter your{'\n'}phone number
-                </Text>
+                <Text className="font-OnestSemiBold text-[36px] text-white">Enter your{'\n'}phone number</Text>
                 <View className="mt-6">
                   <Input
                     autoFocus
-                    className="pl-12"
+                    className="pl-14"
                     defaultValue="9175553474"
                     value={phoneNumber}
                     onChangeText={setPhoneNumber}
@@ -177,21 +163,15 @@ export default function LoginScreen() {
                     onSubmitEditing={onPressSendOTP}
                     returnKeyType="done"
                   />
-                  <View className="ios:top-3.5 absolute bottom-0 left-3 top-2.5">
-                    <Text className="text-[16px] text-default-tertiary">
-                      +63
-                    </Text>
+                  <View className="ios:top-[11px] absolute bottom-0 left-3 top-2.5">
+                    <Text className="text-[16px] text-default-tertiary">+63</Text>
                   </View>
                 </View>
               </View>
             ) : (
               <View className="mt-10 px-4">
-                <Text className="font-OnestSemiBold text-[36px] text-white">
-                  Enter the{'\n'}verification code
-                </Text>
-                <Text className="mt-2 text-default-secondary">
-                  We sent a code to +63 {phoneNumber}
-                </Text>
+                <Text className="font-OnestSemiBold text-[36px] text-white">Enter the{'\n'}verification code</Text>
+                <Text className="mt-2 text-default-secondary">We sent a code to +63 {phoneNumber}</Text>
                 <View className="mt-8 flex-1 gap-4 px-4">
                   <OTPTextInput
                     ref={otpInput}
@@ -212,17 +192,11 @@ export default function LoginScreen() {
                     disabled={loading}
                   />
                   {loading ? (
-                    <Text className="text-center font-OnestSemiBold text-default-secondary">
-                      Verifying...
-                    </Text>
+                    <Text className="text-center font-OnestSemiBold text-default-secondary">Verifying...</Text>
                   ) : (
-                    <TouchableOpacity
-                      onPress={onPressSendOTP}
-                      disabled={cooldown > 0}>
+                    <TouchableOpacity onPress={onPressSendOTP} disabled={cooldown > 0}>
                       <Text className="text-center font-OnestSemiBold text-default-secondary">
-                        {cooldown > 0
-                          ? `Resend in ${cooldown}s`
-                          : 'Resend code'}
+                        {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -237,13 +211,7 @@ export default function LoginScreen() {
             onPress={onPressSendOTP}
             variant="outline"
             className="mx-4 mb-10 h-14 bg-[#0C0E12]">
-            {loading ? (
-              <ActivityIndicator />
-            ) : (
-              <Text className="font-OnestSemiBold text-default-secondary">
-                Next
-              </Text>
-            )}
+            {loading ? <ActivityIndicator /> : <Text className="font-OnestSemiBold text-default-secondary">Next</Text>}
           </Button>
         )}
       </SafeAreaView>

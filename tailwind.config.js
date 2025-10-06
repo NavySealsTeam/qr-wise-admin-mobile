@@ -58,6 +58,20 @@ module.exports = {
         OnestSemiBold: ['OnestSemiBold'],
         OnestBold: ['OnestBold'],
       },
+      fontSize: {
+        xxs: ['10px', '14px'],
+        xs: ['12px', '16px'],
+        sm: ['14px', '20px'],
+        md: ['15px', '22px'],
+        base: ['16px', '24px'],
+        lg: ['18px', '28px'],
+        xl: ['20px', '32px'],
+        '2xl': ['24px', '36px'],
+        '3xl': ['30px', '42px'],
+        '4xl': ['36px', '48px'],
+        '5xl': ['48px', '60px'],
+        '6xl': ['60px', '72px'],
+      },
       keyframes: {
         'accordion-down': {
           from: { height: '0' },
