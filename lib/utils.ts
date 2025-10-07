@@ -172,7 +172,7 @@ export function calculateTotals(
     totalBeverageOrderWithServiceChargeAmount +
     totalFoodOrderWithServiceChargeAmount +
     totalAddOnsWithServiceChargeAmount;
-  const withTogoCharge = totalFoodOrderWithServiceChargeAmount + totalAddOnsWithServiceChargeAmount;
+  const withTogoCharge = totalFoodOrderAmount + totalAddOnsOrderAmount;
   const togoCharge = diningOption === 'TO_GO' && withTogoCharge > 0 ? Number(store?.togoCharge) : 0;
 
   let serviceCharge = 0;
