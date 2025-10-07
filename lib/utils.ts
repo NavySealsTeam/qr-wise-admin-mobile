@@ -138,6 +138,7 @@ export function calculateTotals(
 ) {
   const totalBeverageOrderAmount = calculateTotalByCategory(orders, 'BEVERAGE');
   const totalFoodOrderAmount = calculateTotalByCategory(orders, 'FOOD');
+  const totalBeansOrderAmount = calculateTotalByCategory(orders, 'BEANS');
   const totalAddOnsOrderAmount = orders.reduce((acc, order) => {
     if (!order.addOn) return acc;
     const addOnPrice = Number(order.addOn.price);
@@ -158,7 +159,8 @@ export function calculateTotals(
     return acc + order.qty;
   }, 0);
 
-  const totalOrderAmount = totalBeverageOrderAmount + totalFoodOrderAmount + totalAddOnsOrderAmount;
+  const totalOrderAmount =
+    totalBeverageOrderAmount + totalFoodOrderAmount + totalAddOnsOrderAmount + totalBeansOrderAmount;
   const subtotal = Number((totalOrderAmount / (Number(store?.vatTaxPercentage) / 100)).toFixed(2));
   const vat = discount && discount.isSpecial ? 0 : totalOrderAmount - subtotal;
   const discounted = Number(

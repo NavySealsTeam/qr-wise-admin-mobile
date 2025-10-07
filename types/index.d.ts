@@ -62,7 +62,7 @@ export type MenuGroupOptionSelection = {
   enabled: boolean;
 };
 
-export type MenuGroupOptionCategory = 'FOOD' | 'BEVERAGE' | 'ADD_ONS';
+export type MenuGroupOptionCategory = 'FOOD' | 'BEVERAGE' | 'ADD_ONS' | 'BEANS';
 
 export type MenuGroupOption = {
   id?: string;
@@ -184,13 +184,7 @@ export type Transaction = {
   referenceNumber: string;
   requestReferenceNumber: string;
   refundMethod: RefundMethod;
-  status:
-    | 'PENDING'
-    | 'SUCCESS'
-    | 'FAILED'
-    | 'CANCELLED'
-    | 'REFUNDED'
-    | 'TERMINAL';
+  status: 'PENDING' | 'SUCCESS' | 'FAILED' | 'CANCELLED' | 'REFUNDED' | 'TERMINAL';
   orderStatus: 'PENDING' | 'COMPLETED';
   paymentSuccessAt: Timestamp;
   completedAt: Timestamp;
@@ -202,13 +196,7 @@ export type Transaction = {
   approvalCode?: string;
 };
 
-export type PaymentMethod =
-  | 'GCASH'
-  | 'MAYA'
-  | 'CREDIT_CARD'
-  | 'DEBIT_CARD'
-  | 'QR_PH'
-  | 'CASH';
+export type PaymentMethod = 'GCASH' | 'MAYA' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'QR_PH' | 'CASH';
 
 export type RefundMethod = 'CASH' | 'CREDIT_CARD' | 'DEBIT_CARD';
 
