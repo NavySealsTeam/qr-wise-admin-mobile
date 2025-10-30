@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,9 +17,11 @@ import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { useAuth } from '~/context/AuthUserContext';
 import { useSnackbar } from '~/context/SnackbarContext';
+import { useFirestoreWrite } from '~/hooks/useFirestoreWrite';
 import { db } from '~/lib/firebase';
 
 export default function UpdateInfoScreen() {
+  const { updateWithMeta } = useFirestoreWrite();
   const { getStore, updateUser } = useAuth();
   const { showSnackbar } = useSnackbar();
   const { id, value, label, label2, key, collection } = useLocalSearchParams<{
@@ -38,9 +40,8 @@ export default function UpdateInfoScreen() {
     setLoading(true);
 
     const ref = doc(db, collection, id);
-    await updateDoc(ref, {
+    await updateWithMeta(ref, {
       [key]: input,
-      updatedAt: serverTimestamp(),
     });
 
     if (collection === 'managers-pin') {
@@ -66,9 +67,7 @@ export default function UpdateInfoScreen() {
             extraScrollHeight={Platform.OS === 'ios' ? 80 : 100}
             keyboardShouldPersistTaps="handled">
             <View className="flex-row items-center justify-between px-4 py-1">
-              <TouchableOpacity
-                onPress={() => router.back()}
-                className="size-10 items-center justify-center">
+              <TouchableOpacity onPress={() => router.back()} className="size-10 items-center justify-center">
                 <Svg width="32" height="32" viewBox="0 0 32 32" fill="none">
                   <Path
                     d="M0 16C0 7.16344 7.16344 0 16 0C24.8366 0 32 7.16344 32 16C32 24.8366 24.8366 32 16 32C7.16344 32 0 24.8366 0 16Z"
@@ -87,13 +86,9 @@ export default function UpdateInfoScreen() {
               <View className="size-10" />
             </View>
             <View className="mt-5 gap-4 px-4">
-              <Text className="font-OnestSemiBold text-2xl text-default-tertiary">
-                Update {label}
-              </Text>
+              <Text className="font-OnestSemiBold text-2xl text-default-tertiary">Update {label}</Text>
               <View className="gap-1.5">
-                <Text className="font-OnestMedium text-sm text-default-secondary">
-                  {label2 || label}
-                </Text>
+                <Text className="font-OnestMedium text-sm text-default-secondary">{label2 || label}</Text>
                 {key === 'phone' ? (
                   <View>
                     <Input
@@ -105,9 +100,7 @@ export default function UpdateInfoScreen() {
                       maxLength={10}
                     />
                     <View className="absolute bottom-0 left-3 top-[13px]">
-                      <Text className="text-base text-default-tertiary">
-                        +63
-                      </Text>
+                      <Text className="text-base text-default-tertiary">+63</Text>
                     </View>
                   </View>
                 ) : (

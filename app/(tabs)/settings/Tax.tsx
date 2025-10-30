@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import { ChevronRightIcon, PlusIcon } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
@@ -8,11 +8,13 @@ import { Separator } from '~/components/ui/separator';
 import { Switch } from '~/components/ui/switch';
 import { useAuth } from '~/context/AuthUserContext';
 import { useSnackbar } from '~/context/SnackbarContext';
+import { useFirestoreWrite } from '~/hooks/useFirestoreWrite';
 import { db } from '~/lib/firebase';
 import { cn } from '~/lib/utils';
 import { Discount } from '~/types';
 
 export default function Tax() {
+  const { updateWithMeta } = useFirestoreWrite();
   const { store } = useAuth();
   const { showSnackbar } = useSnackbar();
 
@@ -33,9 +35,8 @@ export default function Tax() {
       isSpecial: i.id === discount.id ? isSpecial : i.isSpecial,
     }));
 
-    await updateDoc(ref, {
+    await updateWithMeta(ref, {
       discounts: updatedDiscounts,
-      updatedAt: serverTimestamp(),
     });
 
     setDiscounts(updatedDiscounts);
@@ -45,9 +46,7 @@ export default function Tax() {
   return (
     <>
       <View className="gap-2">
-        <Text className="font-OnestSemiBold text-default-primary">
-          Value Added Tax
-        </Text>
+        <Text className="font-OnestSemiBold text-default-primary">Value Added Tax</Text>
         <View className="gap-2 rounded-xl border border-[#22262F] bg-[#13161B] p-3">
           <TouchableOpacity
             onPress={() =>
@@ -57,12 +56,8 @@ export default function Tax() {
               })
             }
             className="gap-1">
-            <Text className="font-OnestMedium text-xs text-default-secondary">
-              Tax %
-            </Text>
-            <Text className="font-OnestSemiBold text-base text-default-primary">
-              {store?.vatTaxPercentage}
-            </Text>
+            <Text className="font-OnestMedium text-xs text-default-secondary">Tax %</Text>
+            <Text className="font-OnestSemiBold text-base text-default-primary">{store?.vatTaxPercentage}</Text>
             <View className="absolute bottom-0 right-0 top-0">
               <ChevronRightIcon color="#CECFD2" />
             </View>
@@ -70,9 +65,7 @@ export default function Tax() {
         </View>
       </View>
       <View className="gap-2">
-        <Text className="font-OnestSemiBold text-default-primary">
-          Service Charge
-        </Text>
+        <Text className="font-OnestSemiBold text-default-primary">Service Charge</Text>
         <View className="gap-2 rounded-xl border border-[#22262F] bg-[#13161B] p-3">
           <TouchableOpacity
             onPress={() =>
@@ -81,12 +74,8 @@ export default function Tax() {
               )
             }
             className="gap-1">
-            <Text className="font-OnestMedium text-xs text-default-secondary">
-              Tax %
-            </Text>
-            <Text className="font-OnestSemiBold text-base text-default-primary">
-              {store?.serviceChargePercentage}
-            </Text>
+            <Text className="font-OnestMedium text-xs text-default-secondary">Tax %</Text>
+            <Text className="font-OnestSemiBold text-base text-default-primary">{store?.serviceChargePercentage}</Text>
             <View className="absolute bottom-0 right-0 top-0">
               <ChevronRightIcon color="#CECFD2" />
             </View>
@@ -94,9 +83,7 @@ export default function Tax() {
         </View>
       </View>
       <View className="gap-2">
-        <Text className="font-OnestSemiBold text-default-primary">
-          To Go Charge
-        </Text>
+        <Text className="font-OnestSemiBold text-default-primary">To Go Charge</Text>
         <View className="gap-2 rounded-xl border border-[#22262F] bg-[#13161B] p-3">
           <TouchableOpacity
             onPress={() =>
@@ -105,12 +92,8 @@ export default function Tax() {
               )
             }
             className="gap-1">
-            <Text className="font-OnestMedium text-xs text-default-secondary">
-              Charge (PHP)
-            </Text>
-            <Text className="font-OnestSemiBold text-base text-default-primary">
-              {store?.togoCharge}
-            </Text>
+            <Text className="font-OnestMedium text-xs text-default-secondary">Charge (PHP)</Text>
+            <Text className="font-OnestSemiBold text-base text-default-primary">{store?.togoCharge}</Text>
             <View className="absolute bottom-0 right-0 top-0">
               <ChevronRightIcon color="#CECFD2" />
             </View>
@@ -118,50 +101,32 @@ export default function Tax() {
         </View>
       </View>
       <View className="gap-2">
-        <Text className="font-OnestSemiBold text-default-primary">
-          Discounts
-        </Text>
+        <Text className="font-OnestSemiBold text-default-primary">Discounts</Text>
         {discounts.map((discount) => (
-          <View
-            key={discount.id}
-            className="gap-2 rounded-xl border border-[#22262F] bg-[#13161B] p-3">
+          <View key={discount.id} className="gap-2 rounded-xl border border-[#22262F] bg-[#13161B] p-3">
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center gap-2">
-                <Text className="font-OnestMedium text-sm text-default-secondary">
-                  Less VAT
-                </Text>
+                <Text className="font-OnestMedium text-sm text-default-secondary">Less VAT</Text>
                 <Switch
                   className={cn(discount.isSpecial && 'bg-[#78B300]')}
                   checked={discount.isSpecial}
-                  onCheckedChange={(checked) =>
-                    updateDiscountSpecial(discount, checked)
-                  }
+                  onCheckedChange={(checked) => updateDiscountSpecial(discount, checked)}
                 />
               </View>
               <TouchableOpacity
                 className="w-20 flex-row justify-end"
-                onPress={() =>
-                  router.push(`/add-edit-discount?discountId=${discount.id}`)
-                }>
+                onPress={() => router.push(`/add-edit-discount?discountId=${discount.id}`)}>
                 <ChevronRightIcon color="#CECFD2" />
               </TouchableOpacity>
             </View>
             <View className="gap-1">
-              <Text className="font-OnestMedium text-xs text-default-secondary">
-                Discount Type
-              </Text>
-              <Text className="font-OnestSemiBold text-base text-default-primary">
-                {discount.type}
-              </Text>
+              <Text className="font-OnestMedium text-xs text-default-secondary">Discount Type</Text>
+              <Text className="font-OnestSemiBold text-base text-default-primary">{discount.type}</Text>
             </View>
             <Separator className="bg-[#22262F]" />
             <View className="gap-1">
-              <Text className="font-OnestMedium text-xs text-default-secondary">
-                Discount Rate (%)
-              </Text>
-              <Text className="font-OnestSemiBold text-base text-default-primary">
-                {discount.rate}
-              </Text>
+              <Text className="font-OnestMedium text-xs text-default-secondary">Discount Rate (%)</Text>
+              <Text className="font-OnestSemiBold text-base text-default-primary">{discount.rate}</Text>
             </View>
           </View>
         ))}

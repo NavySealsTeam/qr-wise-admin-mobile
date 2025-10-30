@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { getAuth, signInWithCustomToken } from 'firebase/auth';
-import { collection, getDocs, query, Timestamp, updateDoc, where } from 'firebase/firestore';
+import { collection, getDocs, query, Timestamp, where } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -20,10 +20,12 @@ import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { useAuth } from '~/context/AuthUserContext';
 import { useSnackbar } from '~/context/SnackbarContext';
+import { useFirestoreWrite } from '~/hooks/useFirestoreWrite';
 import { db } from '~/lib/firebase';
 import { generateOTP } from '~/lib/utils';
 
 export default function LoginScreen() {
+  const { updateWithMeta } = useFirestoreWrite();
   const { loginUser } = useAuth();
   const { showSnackbar } = useSnackbar();
 
@@ -59,7 +61,7 @@ export default function LoginScreen() {
 
     try {
       const otp = generateOTP();
-      await updateDoc(querySnapshot.docs[0].ref, {
+      await updateWithMeta(querySnapshot.docs[0].ref, {
         otp,
         otpCreatedAt: Timestamp.now(),
       });

@@ -1,14 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
-import {
-  createContext,
-  PropsWithChildren,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 import { SharedValue, useSharedValue } from 'react-native-reanimated';
 import { SESSION_KEY, SESSION_STORE_ID } from '~/lib/constants';
 import { auth, db } from '~/lib/firebase';
