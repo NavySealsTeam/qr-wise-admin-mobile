@@ -2,7 +2,7 @@
   "expo": {
     "name": "QR Wise",
     "slug": "qr-wise-admin-mobile",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/ios-tinted.png",
     "scheme": "qrwiseadminmobile",
@@ -52,7 +52,8 @@
       "expo-build-properties",
       "expo-font",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-notifications"
     ],
     "splash": {
       "image": "./assets/images/splash-icon.png",

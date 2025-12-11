@@ -1,10 +1,14 @@
+import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 import { SharedValue, useSharedValue } from 'react-native-reanimated';
+import { useFirestoreWrite } from '~/hooks/useFirestoreWrite';
+import { registerForPushNotificationsAsync } from '~/hooks/useRegisterPushToken';
 import { SESSION_KEY, SESSION_STORE_ID } from '~/lib/constants';
 import { auth, db } from '~/lib/firebase';
+import { getLast10Digits } from '~/lib/utils';
 import { Store, User } from '~/types';
 
 type AuthContextType = {
@@ -56,6 +60,8 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: PropsWithChildren) {
+  const { updateWithMeta } = useFirestoreWrite();
+
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [stores, setStores] = useState<Store[]>([]);
   const [store, setStore] = useState<Store | null>(null);
@@ -69,8 +75,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('🔥 Firebase auth state changed:', user);
+
+      if (user) {
+        await registerDevice(user.phoneNumber!);
+      } else if (user === null) {
+        await logoutUser();
+      }
     });
 
     return () => unsubscribe();
@@ -155,6 +167,41 @@ export function AuthProvider({ children }: PropsWithChildren) {
     await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(updatedUser));
     setUser(updatedUser);
   }
+
+  const registerDevice = async (phone: string) => {
+    if (!Device.isDevice) {
+      console.log('⚠️ Must use a physical device for Push Notifications.');
+      return;
+    }
+
+    try {
+      const token = await registerForPushNotificationsAsync();
+      if (!token) return;
+
+      const q = query(collection(db, 'managers-pin'), where('phone', '==', getLast10Digits(phone)));
+      const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) {
+        console.log('❌ No matching user document found for push token registration.');
+        return;
+      }
+
+      const ref = querySnapshot.docs[0].ref;
+      const data = querySnapshot.docs[0].data();
+
+      if (data.deviceToken === token) {
+        console.log('ℹ️ Device already registered with this push token.');
+        return;
+      }
+
+      await updateWithMeta(ref, {
+        deviceToken: token,
+      });
+      updateUser({ deviceToken: token });
+      console.log('✅ Device registered with push token.');
+    } catch (err) {
+      console.error('❌ Error registering device:', err);
+    }
+  };
 
   const toggleSheet = () => {
     openSheet.value = !openSheet.value;

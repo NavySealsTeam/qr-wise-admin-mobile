@@ -43,6 +43,7 @@ export type User = {
   pin: string;
   storeId: string;
   type: UserType;
+  deviceToken?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 };

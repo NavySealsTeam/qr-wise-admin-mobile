@@ -353,3 +353,15 @@ export function getDateFromRange(value: number, numDays: number) {
   const date = subDays(new Date(), daysFromToday);
   return date;
 }
+
+export function getLast10Digits(phone: string) {
+  const digits = phone.replace(/\D/g, '');
+  const last10 = digits.slice(-10);
+
+  // Validate: must be exactly 10 digits and start with '9'
+  if (/^9\d{9}$/.test(last10)) {
+    return last10;
+  }
+
+  return null; // invalid phone number
+}

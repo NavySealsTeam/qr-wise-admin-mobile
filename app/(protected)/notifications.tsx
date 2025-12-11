@@ -1,16 +1,61 @@
-import { router } from 'expo-router';
+import { format, isToday, isYesterday } from 'date-fns';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path, Rect } from 'react-native-svg';
+import { useNotificationsQuery } from '~/hooks/useNotificationsQuery';
+
+function formatMonthDay(ms: number) {
+  const d = new Date(ms);
+  if (isToday(d)) {
+    return 'Today';
+  }
+
+  if (isYesterday(d)) {
+    return 'Yesterday';
+  }
+
+  return d.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+function groupByDate(notifications: any[]): Record<string, any[]> {
+  return notifications.reduce(
+    (acc: Record<string, any[]>, n) => {
+      const dateKey = formatMonthDay(n.timestamp);
+
+      if (!acc[dateKey]) acc[dateKey] = [];
+      acc[dateKey].push(n);
+
+      return acc;
+    },
+    {} as Record<string, any[]>,
+  );
+}
 
 export default function NotificationsScreen() {
+  const { data: notifications, refetch } = useNotificationsQuery('notifications');
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch?.();
+    }, []),
+  );
+
+  const grouped = groupByDate(notifications || []);
+  const groupsArray = Object.entries(grouped).map(([date, items]) => ({
+    date,
+    items,
+  }));
+
   return (
     <View className="flex-1 bg-[#0C0E12]">
       <SafeAreaView className="flex-1">
         <View className="flex-row items-center justify-between px-4 py-1">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="size-10 items-center justify-center">
+          <TouchableOpacity onPress={() => router.back()} className="size-10 items-center justify-center">
             <Svg width="32" height="32" viewBox="0 0 32 32" fill="none">
               <Path
                 d="M0 16C0 7.16344 7.16344 0 16 0C24.8366 0 32 7.16344 32 16C32 24.8366 24.8366 32 16 32C7.16344 32 0 24.8366 0 16Z"
@@ -36,13 +81,74 @@ export default function NotificationsScreen() {
             paddingHorizontal: 16,
             gap: 16,
           }}>
-          <Text className="text-default-tertiary font-OnestSemiBold text-2xl">
-            Notifications
-          </Text>
-          <View className="gap-2">
-            <Text className="text-default-primary font-OnestSemiBold text-base">
-              Yesterday
-            </Text>
+          <Text className="font-OnestSemiBold text-2xl text-default-tertiary">Notifications</Text>
+          {groupsArray.map((group) => (
+            <View className="gap-2" key={group.date}>
+              <Text className="font-OnestSemiBold text-base text-default-primary">{group.date}</Text>
+              {(group.items || []).map((notification: any, index: number) => {
+                if (notification.type === 'stock-low') {
+                  return (
+                    <View key={index} className="flex-row gap-3 rounded-xl border border-[#22262F] bg-[#13161B] p-3">
+                      <Svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                        <Rect width="28" height="28" rx="14" fill="#373A41" />
+                        <Path
+                          d="M13.9995 12V14.6667M13.9995 17.3334H14.0062M13.0764 8.59451L7.59313 18.0656C7.289 18.5909 7.13693 18.8536 7.1594 19.0692C7.17901 19.2572 7.27752 19.4281 7.43043 19.5392C7.60573 19.6667 7.90924 19.6667 8.51625 19.6667H19.4828C20.0898 19.6667 20.3933 19.6667 20.5686 19.5392C20.7215 19.4281 20.82 19.2572 20.8396 19.0692C20.8621 18.8536 20.71 18.5909 20.4059 18.0656L14.9226 8.59451C14.6196 8.07107 14.4681 7.80935 14.2704 7.72145C14.0979 7.64477 13.9011 7.64477 13.7286 7.72145C13.531 7.80935 13.3794 8.07107 13.0764 8.59451Z"
+                          stroke="#CECFD2"
+                          strokeWidth="1.37255"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </Svg>
+                      <View className="flex-1 gap-1">
+                        <Text className="font-OnestSemiBold text-base text-default-primary">
+                          {notification.menuItemName} is low in stock
+                        </Text>
+                        <Text className="font-OnestRegular text-sm text-default-secondary">
+                          Stock for {notification.menuItemName} is below 5 units. Restock soon to avoid missing sales.
+                        </Text>
+                        <Text className="font-OnestRegular text-xs text-default-tertiary">
+                          {format(notification.timestamp, 'p')}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                }
+
+                if (notification.type === 'stock-unavailable') {
+                  return (
+                    <View key={index} className="flex-row gap-3 rounded-xl border border-[#22262F] bg-[#13161B] p-3">
+                      <Svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                        <Rect width="28" height="28" rx="14" fill="#373A41" />
+                        <Path
+                          d="M19.3332 13.9607V10.5333C19.3332 9.41315 19.3332 8.85309 19.1152 8.42527C18.9234 8.04895 18.6175 7.74299 18.2412 7.55124C17.8133 7.33325 17.2533 7.33325 16.1332 7.33325H11.8665C10.7464 7.33325 10.1863 7.33325 9.75852 7.55124C9.3822 7.74299 9.07624 8.04895 8.88449 8.42527C8.6665 8.85309 8.6665 9.41315 8.6665 10.5333L8.6665 17.4666C8.6665 18.5867 8.6665 19.1467 8.88449 19.5746C9.07624 19.9509 9.3822 20.2569 9.75852 20.4486C10.1863 20.6666 10.7464 20.6666 11.8665 20.6666H15.3332M15.3332 13.3333H11.3332M12.6665 15.9999H11.3332M16.6665 10.6666L11.3332 10.6666M15.9998 17.3333H19.9998"
+                          stroke="#CECFD2"
+                          strokeWidth="1.37255"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </Svg>
+                      <View className="flex-1 gap-1">
+                        <Text className="font-OnestSemiBold text-base text-default-primary">
+                          {notification.menuItemName} marked as unavailable
+                        </Text>
+                        <Text className="font-OnestRegular text-sm text-default-secondary">
+                          This item is out of stock. Tap to restock or mark as available.
+                        </Text>
+                        <Text className="font-OnestRegular text-xs text-default-tertiary">
+                          {format(notification.timestamp, 'p')}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                }
+
+                return null;
+              })}
+            </View>
+          ))}
+
+          {/* <View className="gap-2">
+            <Text className="font-OnestSemiBold text-base text-default-primary">Yesterday</Text>
             <TouchableOpacity className="flex-row gap-3 rounded-xl border border-[#22262F] bg-[#13161B] p-3">
               <Svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                 <Rect width="28" height="28" rx="14" fill="#373A41" />
@@ -55,16 +161,11 @@ export default function NotificationsScreen() {
                 />
               </Svg>
               <View className="flex-1 gap-1">
-                <Text className="text-default-primary font-OnestSemiBold text-base">
-                  Beef Tapa is low in stock
+                <Text className="font-OnestSemiBold text-base text-default-primary">Beef Tapa is low in stock</Text>
+                <Text className="font-OnestRegular text-sm text-default-secondary">
+                  Stock for Beef Tapa is below 10 units. Restock soon to avoid missing sales.
                 </Text>
-                <Text className="text-default-secondary font-OnestRegular text-sm">
-                  Stock for Beef Tapa is below 10 units. Restock soon to avoid
-                  missing sales.
-                </Text>
-                <Text className="text-default-tertiary font-OnestRegular text-xs">
-                  9:07 PM
-                </Text>
+                <Text className="font-OnestRegular text-xs text-default-tertiary">9:07 PM</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity className="flex-row gap-3 rounded-xl border border-[#22262F] bg-[#13161B] p-3">
@@ -79,22 +180,18 @@ export default function NotificationsScreen() {
                 />
               </Svg>
               <View className="flex-1 gap-1">
-                <Text className="text-default-primary font-OnestSemiBold text-base">
+                <Text className="font-OnestSemiBold text-base text-default-primary">
                   Your sales today reached ₱34,291.20!
                 </Text>
-                <Text className="text-default-secondary font-OnestRegular text-sm">
+                <Text className="font-OnestRegular text-sm text-default-secondary">
                   That’s 12% more than yesterday. Tap to learn more.
                 </Text>
-                <Text className="text-default-tertiary font-OnestRegular text-xs">
-                  8:00 PM
-                </Text>
+                <Text className="font-OnestRegular text-xs text-default-tertiary">8:00 PM</Text>
               </View>
             </TouchableOpacity>
           </View>
           <View className="gap-2">
-            <Text className="text-default-primary font-OnestSemiBold text-base">
-              July 18
-            </Text>
+            <Text className="font-OnestSemiBold text-base text-default-primary">July 18</Text>
             <TouchableOpacity className="flex-row gap-3 rounded-xl border border-[#22262F] bg-[#13161B] p-3">
               <Svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                 <Rect width="28" height="28" rx="14" fill="#373A41" />
@@ -107,23 +204,18 @@ export default function NotificationsScreen() {
                 />
               </Svg>
               <View className="flex-1 gap-1">
-                <Text className="text-default-primary font-OnestSemiBold text-base">
+                <Text className="font-OnestSemiBold text-base text-default-primary">
                   Loca’s Ube Cheesecake is today’s top seller!
                 </Text>
-                <Text className="text-default-secondary font-OnestRegular text-sm">
-                  Loca’s Ube Cheesecake sold 24 units today. Tap to see full
-                  product movement.
+                <Text className="font-OnestRegular text-sm text-default-secondary">
+                  Loca’s Ube Cheesecake sold 24 units today. Tap to see full product movement.
                 </Text>
-                <Text className="text-default-tertiary font-OnestRegular text-xs">
-                  8:00 PM
-                </Text>
+                <Text className="font-OnestRegular text-xs text-default-tertiary">8:00 PM</Text>
               </View>
             </TouchableOpacity>
           </View>
           <View className="gap-2">
-            <Text className="text-default-primary font-OnestSemiBold text-base">
-              July 17
-            </Text>
+            <Text className="font-OnestSemiBold text-base text-default-primary">July 17</Text>
             <TouchableOpacity className="flex-row gap-3 rounded-xl border border-[#22262F] bg-[#13161B] p-3">
               <Svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                 <Rect width="28" height="28" rx="14" fill="#373A41" />
@@ -136,15 +228,9 @@ export default function NotificationsScreen() {
                 />
               </Svg>
               <View className="flex-1 gap-1">
-                <Text className="text-default-primary font-OnestSemiBold text-base">
-                  Truffle Fries added to menu
-                </Text>
-                <Text className="text-default-secondary font-OnestRegular text-sm">
-                  Tap to see how it’s performing
-                </Text>
-                <Text className="text-default-tertiary font-OnestRegular text-xs">
-                  11:00 PM
-                </Text>
+                <Text className="font-OnestSemiBold text-base text-default-primary">Truffle Fries added to menu</Text>
+                <Text className="font-OnestRegular text-sm text-default-secondary">Tap to see how it’s performing</Text>
+                <Text className="font-OnestRegular text-xs text-default-tertiary">11:00 PM</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity className="flex-row gap-3 rounded-xl border border-[#22262F] bg-[#13161B] p-3">
@@ -159,19 +245,16 @@ export default function NotificationsScreen() {
                 />
               </Svg>
               <View className="flex-1 gap-1">
-                <Text className="text-default-primary font-OnestSemiBold text-base">
+                <Text className="font-OnestSemiBold text-base text-default-primary">
                   Crispy Pork Belly marked as unavailable
                 </Text>
-                <Text className="text-default-secondary font-OnestRegular text-sm">
-                  This item is out of stock. Tap to restock or mark as
-                  available.
+                <Text className="font-OnestRegular text-sm text-default-secondary">
+                  This item is out of stock. Tap to restock or mark as available.
                 </Text>
-                <Text className="text-default-tertiary font-OnestRegular text-xs">
-                  8:00 PM
-                </Text>
+                <Text className="font-OnestRegular text-xs text-default-tertiary">8:00 PM</Text>
               </View>
             </TouchableOpacity>
-          </View>
+          </View> */}
         </ScrollView>
       </SafeAreaView>
     </View>
