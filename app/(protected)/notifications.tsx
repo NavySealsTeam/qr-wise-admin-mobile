@@ -104,7 +104,7 @@ export default function NotificationsScreen() {
                           {notification.menuItemName} is low in stock
                         </Text>
                         <Text className="font-OnestRegular text-sm text-default-secondary">
-                          Stock for {notification.menuItemName} is below 5 units. Restock soon to avoid missing sales.
+                          Stock for {notification.menuItemName} is below 2 units. Restock soon to avoid missing sales.
                         </Text>
                         <Text className="font-OnestRegular text-xs text-default-tertiary">
                           {format(notification.timestamp, 'p')}
