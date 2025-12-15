@@ -139,6 +139,7 @@ export function calculateTotals(
   const totalBeverageOrderAmount = calculateTotalByCategory(orders, 'BEVERAGE');
   const totalFoodOrderAmount = calculateTotalByCategory(orders, 'FOOD');
   const totalBeansOrderAmount = calculateTotalByCategory(orders, 'BEANS');
+  const totalBakeryOrderAmount = calculateTotalByCategory(orders, 'BAKERY');
   const totalAddOnsOrderAmount = orders.reduce((acc, order) => {
     if (!order.addOn) return acc;
     const addOnPrice = Number(order.addOn.price);
@@ -148,6 +149,7 @@ export function calculateTotals(
   // with service charge
   const totalBeverageOrderWithServiceChargeAmount = calculateTotalWithServiceCharge(orders, 'BEVERAGE');
   const totalFoodOrderWithServiceChargeAmount = calculateTotalWithServiceCharge(orders, 'FOOD');
+  const totalBakeryOrderWithServiceChargeAmount = calculateTotalWithServiceCharge(orders, 'BAKERY');
   const totalAddOnsWithServiceChargeAmount = orders.reduce((acc, order) => {
     if (!order.addOn || order.addOn.hasServiceCharge === false) return acc;
     const addOnPrice = Number(order.addOn.price);
@@ -160,7 +162,11 @@ export function calculateTotals(
   }, 0);
 
   const totalOrderAmount =
-    totalBeverageOrderAmount + totalFoodOrderAmount + totalAddOnsOrderAmount + totalBeansOrderAmount;
+    totalBeverageOrderAmount +
+    totalFoodOrderAmount +
+    totalAddOnsOrderAmount +
+    totalBeansOrderAmount +
+    totalBakeryOrderAmount;
   const subtotal = Number((totalOrderAmount / (Number(store?.vatTaxPercentage) / 100)).toFixed(2));
   const vat = discount && discount.isSpecial ? 0 : totalOrderAmount - subtotal;
   const discounted = Number(
@@ -171,6 +177,7 @@ export function calculateTotals(
   const totalWithServiceChargeAmount =
     totalBeverageOrderWithServiceChargeAmount +
     totalFoodOrderWithServiceChargeAmount +
+    totalBakeryOrderWithServiceChargeAmount +
     totalAddOnsWithServiceChargeAmount;
   const withTogoCharge = totalFoodOrderAmount + totalAddOnsOrderAmount;
   const togoCharge = diningOption === 'TO_GO' && withTogoCharge > 0 ? Number(store?.togoCharge) : 0;

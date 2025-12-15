@@ -63,7 +63,7 @@ export type MenuGroupOptionSelection = {
   enabled: boolean;
 };
 
-export type MenuGroupOptionCategory = 'FOOD' | 'BEVERAGE' | 'ADD_ONS' | 'BEANS';
+export type MenuGroupOptionCategory = 'FOOD' | 'BEVERAGE' | 'ADD_ONS' | 'BEANS' | 'BAKERY';
 
 export type MenuGroupOption = {
   id?: string;
