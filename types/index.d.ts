@@ -268,4 +268,37 @@ export type Voucher = {
   createdAt: Timestamp;
   usedAt: Timestamp;
   expiredAt: Timestamp;
+  food: number;
+  beverage: number;
+  bakery: number;
+  isSaleSnap?: boolean;
+  fAndBRedemption?: {
+    currency: string;
+    amount: number;
+    location_id: string;
+    promo_code: string;
+    menu_items: string;
+    offer_type: OfferType;
+    offer_value: string;
+  };
 };
+
+export interface Promotion {
+  id: string;
+  name: string;
+  description: string;
+  discountType: 'PERCENTAGE' | 'CASH';
+  discountValue: number;
+  appliesTo: 'ALL' | 'SELECTED';
+  menuItemIds: string[]; // empty if appliesTo === "ALL"
+  startDate: Timestamp;
+  endDate: Timestamp;
+  isActive: boolean;
+  priority: number; // higher = stronger promo
+  usageCount: number;
+  lastUsedAt: Timestamp | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+type OfferType = 'PERCENTAGE_OFF' | 'FIXED_AMOUNT' | 'BUY_1_GET_1' | 'FREE_ITEM' | 'BUNDLE_PRICE';

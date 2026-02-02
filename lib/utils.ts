@@ -8,7 +8,9 @@ import {
   Discount,
   MenuGroupOptionCategory,
   MenuItem,
+  OfferType,
   Order,
+  Promotion,
   Store,
   TempOrder,
   Transaction,
@@ -129,12 +131,128 @@ function calculateTotalWithServiceCharge(orders: Order[] | TempOrder[], category
   }, 0);
 }
 
+function calculateBuyOneGetOneDiscount(
+  orders: Order[] | TempOrder[],
+  promos: Promotion[],
+  eligibleIds: Set<string> | null,
+) {
+  return orders.reduce((discount, order) => {
+    const menuId = order.menu?.id;
+    if (!menuId) return discount;
+
+    const eligible = eligibleIds === null ? true : eligibleIds.has(menuId);
+    if (!eligible) return discount;
+
+    const qty = order.qty || 0;
+    if (qty < 2) return discount;
+
+    const options = order.options || [];
+    const addOns = order.addOns || [];
+    const menuPrice = Number(order.menu?.price) || 0;
+
+    const selectionPrice = options.reduce((s, o) => s + Number(o.selectionPrice || 0), 0);
+    const addOnPrice = addOns.reduce((s, a) => s + Number(a.price || 0), 0);
+
+    const unitPrice = menuPrice + selectionPrice + addOnPrice;
+
+    // promo-respected unit price
+    const promo = resolvePromotion(menuId, unitPrice, promos);
+    const finalUnitPrice = promo.finalPrice;
+
+    const freeQty = Math.floor(qty / 2);
+    return discount + freeQty * finalUnitPrice;
+  }, 0);
+}
+
+function calculateFreeAnyEligibleItemDiscount(
+  orders: Order[] | TempOrder[],
+  promos: Promotion[],
+  eligibleIds: Set<string> | null,
+) {
+  // build list of eligible order lines with their unit price
+  const eligibleUnitPrices: number[] = [];
+
+  for (const order of orders) {
+    const menuId = order.menu?.id;
+    if (!menuId) continue;
+
+    const eligible = eligibleIds === null ? true : eligibleIds.has(menuId);
+    if (!eligible) continue;
+    if ((order.qty ?? 0) <= 0) continue;
+
+    const options = order.options || [];
+    const addOns = order.addOns || [];
+    const menuPrice = Number(order.menu?.price) || 0;
+
+    const selectionPrice = options.reduce((s, o) => s + Number(o.selectionPrice || 0), 0);
+    const addOnPrice = addOns.reduce((s, a) => s + Number(a.price || 0), 0);
+
+    const unitRaw = menuPrice + selectionPrice + addOnPrice;
+
+    // if you want voucher to respect promos per-item:
+    const promo = resolvePromotion(menuId, unitRaw, promos);
+    const unitFinal = Number(promo.finalPrice || 0);
+
+    // if qty is 3, you still only get 1 free, so just push one unit price
+    eligibleUnitPrices.push(unitFinal);
+  }
+
+  if (eligibleUnitPrices.length === 0) return 0;
+
+  // ✅ cheapest eligible unit becomes free
+  const cheapest = Math.min(...eligibleUnitPrices);
+
+  // safety: discount cannot be negative
+  return Number(Math.max(0, cheapest).toFixed(2));
+}
+
+function calculateEligibleTotal(orders: Order[] | TempOrder[], promos: Promotion[], eligibleIds: Set<string> | null) {
+  return orders.reduce((acc, order) => {
+    const menuId = order.menu?.id;
+    if (!menuId) return acc;
+
+    const eligible = eligibleIds === null ? true : eligibleIds.has(menuId);
+    if (!eligible) return acc;
+
+    return acc + getOrderLineTotal(order, promos);
+  }, 0);
+}
+
+function getOrderLineTotal(order: Order | TempOrder, promos: Promotion[]) {
+  const options = order.options || [];
+  const addOns = order.addOns || [];
+  const menuPrice = Number(order.menu?.price) || 0;
+
+  const selectionPrice = options.reduce((sum, opt) => sum + Number(opt.selectionPrice || 0), 0);
+  const addOnPrice = addOns.reduce((sum, addOn) => sum + Number(addOn.price || 0), 0);
+
+  const rawTotal = order.qty * (menuPrice + selectionPrice + addOnPrice);
+
+  // if you want voucher to respect promos:
+  const promo = resolvePromotion(order.menu?.id!, rawTotal, promos);
+  return promo.finalPrice;
+}
+
+function getEligibleMenuItemIdSet(menu_items: unknown) {
+  const isAllMenuItems = String(menu_items || '').toLowerCase() === 'all menu items';
+  if (isAllMenuItems) return null as Set<string> | null; // null = all eligible
+
+  try {
+    const parsed = typeof menu_items === 'string' ? JSON.parse(menu_items) : menu_items;
+    const ids = Array.isArray(parsed) ? parsed.map((x) => x?.id).filter(Boolean) : [];
+    return new Set(ids);
+  } catch {
+    return new Set<string>(); // nothing eligible if invalid
+  }
+}
+
 export function calculateTotals(
   orders: Order[] | TempOrder[],
   diningOption: DiningOption,
   store: Store | null,
   discount: Discount | null,
   voucher: Voucher | null,
+  promos: Promotion[] = [],
 ) {
   const totalBeverageOrderAmount = calculateTotalByCategory(orders, 'BEVERAGE');
   const totalFoodOrderAmount = calculateTotalByCategory(orders, 'FOOD');
@@ -175,7 +293,31 @@ export function calculateTotals(
   const discounted = Number(
     (discount ? (discount.isSpecial ? subtotal : subtotal + vat) * (Number(discount?.rate) / 100) : 0).toFixed(2),
   );
-  const voucherDiscounted = Number((voucher ? (subtotal + vat) * (voucher.rate / 100) : 0).toFixed(2));
+
+  let voucherDiscounted = 0;
+  if (voucher?.fAndBRedemption) {
+    const offerType = voucher.fAndBRedemption.offer_type as OfferType;
+    const eligibleIds = getEligibleMenuItemIdSet(voucher.fAndBRedemption.menu_items);
+    const eligibleTotal = calculateEligibleTotal(orders, promos, eligibleIds);
+
+    if (offerType === 'FIXED_AMOUNT' || offerType === 'BUNDLE_PRICE') {
+      const fixed = Math.max(0, Number(voucher.fAndBRedemption.offer_value || 0));
+      voucherDiscounted = Math.min(fixed, eligibleTotal);
+    } else if (offerType === 'PERCENTAGE_OFF') {
+      const rate = Math.max(0, Math.min(1, Number(voucher.fAndBRedemption.offer_value || 0) / 100));
+      voucherDiscounted = Math.min(Number((eligibleTotal * rate).toFixed(2)), eligibleTotal);
+    } else if (offerType === 'BUY_1_GET_1') {
+      voucherDiscounted = calculateBuyOneGetOneDiscount(orders, promos, eligibleIds);
+    } else if (offerType === 'FREE_ITEM') {
+      const eligibleIds = getEligibleMenuItemIdSet(voucher.fAndBRedemption.menu_items);
+      voucherDiscounted = calculateFreeAnyEligibleItemDiscount(orders, promos, eligibleIds);
+    }
+
+    voucherDiscounted = Number(voucherDiscounted.toFixed(2));
+  } else if (voucher) {
+    // fallback: normal voucher applies to everything (if you still want this behavior)
+    voucherDiscounted = Number(((subtotal + vat) * (voucher.rate / 100)).toFixed(2));
+  }
 
   const totalWithServiceChargeAmount =
     totalBeverageOrderWithServiceChargeAmount +
@@ -199,105 +341,13 @@ export function calculateTotals(
 
   return {
     quantity,
-    subtotal,
-    vat,
+    subtotal: discount?.isSpecial ? totalOrderAmount : subtotal,
+    vat: discount?.isSpecial ? -(totalOrderAmount - subtotal) : vat,
     discounted,
+    voucherDiscounted,
     serviceCharge,
     togoCharge,
     totalAmount: Number(totalAmount.toFixed(2)),
-  };
-}
-
-export function calculateTransactionsTotals(transactions: Transaction[], store: Store | null) {
-  const successTransactions = transactions.filter((i) => i.status === 'SUCCESS');
-
-  const totalSalesWithVatEx = successTransactions
-    .map((transaction) => {
-      const discount = store?.discounts.find((i) => i.id === transaction.discountId);
-      const { subtotal } = calculateTotals(
-        transaction.orders || [],
-        transaction.diningOption,
-        store,
-        discount || null,
-        transaction.voucher || null,
-      );
-      return subtotal;
-    })
-    .reduce((acc, i) => acc + i, 0);
-
-  const totalSalesWithVatInc = successTransactions
-    .map((transaction) => transaction.amount)
-    .reduce((acc, i) => acc + i, 0);
-
-  const totalAmountByPaymentMethod = successTransactions
-    .filter((i) => i.source === 'DINER')
-    .reduce(
-      (acc: Record<string, number>, transaction) => {
-        const method = transaction.paymentMethod || 'Unknown';
-        const amount = transaction.amount || 0;
-
-        if (!acc[method]) {
-          acc[method] = 0;
-        }
-
-        acc[method] += amount;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
-
-  return {
-    successTransactions,
-    totalSalesWithVatEx,
-    totalSalesWithVatInc,
-    dinerSales: successTransactions
-      .filter((i) => i.source === 'DINER')
-      .map((transaction) => transaction.amount)
-      .reduce((acc, i) => acc + i, 0),
-    terminalSales: successTransactions
-      .filter((i) => ['KIOSK', 'SERVICE'].includes(i.source) && ['CREDIT_CARD', 'DEBIT_CARD'].includes(i.paymentMethod))
-      .map((transaction) => transaction.amount)
-      .reduce((acc, i) => acc + i, 0),
-    qrphSales: successTransactions
-      .filter((i) => ['KIOSK', 'SERVICE'].includes(i.source) && i.paymentMethod === 'QR_PH')
-      .map((transaction) => transaction.amount)
-      .reduce((acc, i) => acc + i, 0),
-    diner: {
-      ...totalAmountByPaymentMethod,
-    },
-    kiosk: {
-      creditCard: successTransactions
-        .filter((i) => i.paymentMethod === 'CREDIT_CARD' && i.source === 'KIOSK')
-        .map((transaction) => transaction.amount)
-        .reduce((acc, i) => acc + i, 0),
-      debitCard: successTransactions
-        .filter((i) => i.paymentMethod === 'DEBIT_CARD' && i.source === 'KIOSK')
-        .map((transaction) => transaction.amount)
-        .reduce((acc, i) => acc + i, 0),
-      qrph: successTransactions
-        .filter((i) => i.paymentMethod === 'QR_PH' && i.source === 'KIOSK')
-        .map((transaction) => transaction.amount)
-        .reduce((acc, i) => acc + i, 0),
-    },
-    counter: {
-      cash: successTransactions
-        .filter((i) => i.paymentMethod === 'CASH' && (i.source === 'SERVICE' || !i.source))
-        .map((transaction) => transaction.amount)
-        .reduce((acc, i) => acc + i, 0),
-      creditCard: successTransactions
-        .filter((i) => i.paymentMethod === 'CREDIT_CARD' && (i.source === 'SERVICE' || !i.source))
-        .map((transaction) => transaction.amount)
-        .reduce((acc, i) => acc + i, 0),
-      debitCard: successTransactions
-        .filter((i) => i.paymentMethod === 'DEBIT_CARD' && (i.source === 'SERVICE' || !i.source))
-        .map((transaction) => transaction.amount)
-        .reduce((acc, i) => acc + i, 0),
-      qrph: successTransactions
-        .filter((i) => i.paymentMethod === 'QR_PH' && (i.source === 'SERVICE' || !i.source))
-        .map((transaction) => transaction.amount)
-        .reduce((acc, i) => acc + i, 0),
-      grabFood: 0,
-    },
   };
 }
 
@@ -375,4 +425,42 @@ export function getLast10Digits(phone: string) {
   }
 
   return null; // invalid phone number
+}
+
+export function resolvePromotion(
+  menuItemId: string = '',
+  itemPrice: number,
+  promos: Promotion[],
+): { promo: Promotion; finalPrice: number } {
+  const promo = promos
+    .filter(
+      (p) =>
+        p.isActive && (p.appliesTo === 'ALL' || (p.appliesTo === 'SELECTED' && p.menuItemIds.includes(menuItemId))),
+    )
+    .sort((a, b) => {
+      const aValue = a.discountType === 'PERCENTAGE' ? itemPrice * (a.discountValue / 100) : a.discountValue;
+      const bValue = b.discountType === 'PERCENTAGE' ? itemPrice * (b.discountValue / 100) : b.discountValue;
+      return bValue - aValue;
+    })?.[0];
+
+  return {
+    promo,
+    finalPrice:
+      promo?.discountType === 'PERCENTAGE'
+        ? Number((itemPrice - itemPrice * (promo.discountValue / 100)).toFixed(2))
+        : promo
+          ? Number((itemPrice - promo.discountValue).toFixed(2))
+          : itemPrice,
+  };
+}
+
+export function tryParseJSON(str: string) {
+  if (typeof str !== 'string') return str;
+
+  try {
+    const parsed = JSON.parse(str);
+    return parsed;
+  } catch {
+    return [];
+  }
 }
