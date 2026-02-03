@@ -131,37 +131,53 @@ function calculateTotalWithServiceCharge(orders: Order[] | TempOrder[], category
   }, 0);
 }
 
-function calculateBuyOneGetOneDiscount(
-  orders: Order[] | TempOrder[],
-  promos: Promotion[],
-  eligibleIds: Set<string> | null,
-) {
-  return orders.reduce((discount, order) => {
+function calculateBuyOneGetOneDiscount(orders: Order[] | TempOrder[], promos: Promotion[], eligibleIds: Set<string>) {
+  let sameItemFree: number | null = null;
+  let cheapestEligible: number | null = null;
+
+  // ---- A) SAME-ITEM B1G1 ----
+  orders.forEach((order) => {
     const menuId = order.menu?.id;
-    if (!menuId) return discount;
+    if (!menuId) return;
 
     const eligible = eligibleIds === null ? true : eligibleIds.has(menuId);
-    if (!eligible) return discount;
+    if (!eligible) return;
 
-    const qty = order.qty || 0;
-    if (qty < 2) return discount;
+    const qty = Number(order.qty || 0);
+    if (qty <= 0) return;
 
-    const options = order.options || [];
-    const addOns = order.addOns || [];
-    const menuPrice = Number(order.menu?.price) || 0;
+    const unitPrice = getFinalUnitPrice(order, promos);
 
-    const selectionPrice = options.reduce((s, o) => s + Number(o.selectionPrice || 0), 0);
-    const addOnPrice = addOns.reduce((s, a) => s + Number(a.price || 0), 0);
+    // A) same-item B1G1 candidate
+    if (qty >= 2) {
+      sameItemFree = sameItemFree === null ? unitPrice : Math.min(sameItemFree, unitPrice);
+    }
 
-    const unitPrice = menuPrice + selectionPrice + addOnPrice;
+    // B) cross-item candidate (any eligible)
+    cheapestEligible = cheapestEligible === null ? unitPrice : Math.min(cheapestEligible, unitPrice);
+  });
 
-    // promo-respected unit price
-    const promo = resolvePromotion(menuId, unitPrice, promos);
-    const finalUnitPrice = promo.finalPrice;
+  // must have at least 2 eligible units total
+  const totalEligibleQty = orders.reduce((sum, o) => {
+    const id = o.menu?.id;
+    if (!id) return sum;
 
-    const freeQty = Math.floor(qty / 2);
-    return discount + freeQty * finalUnitPrice;
+    const eligible = eligibleIds === null ? true : eligibleIds.has(id);
+    if (!eligible) return sum;
+
+    return sum + Number(o.qty || 0);
   }, 0);
+
+  if (totalEligibleQty < 2) return 0;
+
+  // choose ONE free item only (cheapest valid)
+  const freePriceCandidates = [sameItemFree, cheapestEligible].filter((v) => v !== null && typeof v === 'number');
+
+  if (freePriceCandidates.length === 0) return 0;
+
+  // Math.min only called if array is non-empty and contains only numbers
+  const minCandidate = Math.min(...freePriceCandidates);
+  return Number(minCandidate.toFixed(2));
 }
 
 function calculateFreeAnyEligibleItemDiscount(
@@ -216,6 +232,23 @@ function calculateEligibleTotal(orders: Order[] | TempOrder[], promos: Promotion
 
     return acc + getOrderLineTotal(order, promos);
   }, 0);
+}
+
+function getFinalUnitPrice(order: Order | TempOrder, promos: Promotion[]) {
+  const options = order.options || [];
+  const addOns = order.addOns || [];
+  const menuPrice = Number(order.menu?.price) || 0;
+
+  const selectionPrice = options.reduce((s, o) => s + Number(o.selectionPrice || 0), 0);
+  const addOnPrice = addOns.reduce((s, a) => s + Number(a.price || 0), 0);
+
+  const unitRaw = menuPrice + selectionPrice + addOnPrice;
+  const qty = Number(order.qty || 1);
+
+  const lineTotal = unitRaw * qty;
+  const promo = resolvePromotion(order.menu!.id, lineTotal, promos);
+
+  return promo.finalPrice / qty;
 }
 
 function getOrderLineTotal(order: Order | TempOrder, promos: Promotion[]) {
@@ -295,7 +328,7 @@ export function calculateTotals(
   );
 
   let voucherDiscounted = 0;
-  if (voucher?.fAndBRedemption) {
+  if (voucher?.fAndBRedemption && voucher?.fAndBRedemption?.offer_type) {
     const offerType = voucher.fAndBRedemption.offer_type as OfferType;
     const eligibleIds = getEligibleMenuItemIdSet(voucher.fAndBRedemption.menu_items);
     const eligibleTotal = calculateEligibleTotal(orders, promos, eligibleIds);
@@ -307,9 +340,10 @@ export function calculateTotals(
       const rate = Math.max(0, Math.min(1, Number(voucher.fAndBRedemption.offer_value || 0) / 100));
       voucherDiscounted = Math.min(Number((eligibleTotal * rate).toFixed(2)), eligibleTotal);
     } else if (offerType === 'BUY_1_GET_1') {
-      voucherDiscounted = calculateBuyOneGetOneDiscount(orders, promos, eligibleIds);
+      voucherDiscounted = calculateBuyOneGetOneDiscount(orders, promos, eligibleIds!);
     } else if (offerType === 'FREE_ITEM') {
-      const eligibleIds = getEligibleMenuItemIdSet(voucher.fAndBRedemption.menu_items);
+      const offerValue = JSON.parse(voucher.fAndBRedemption.offer_value);
+      const eligibleIds = getEligibleMenuItemIdSet([offerValue]);
       voucherDiscounted = calculateFreeAnyEligibleItemDiscount(orders, promos, eligibleIds);
     }
 
