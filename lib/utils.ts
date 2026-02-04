@@ -12,7 +12,6 @@ import {
   Order,
   Promotion,
   Store,
-  TempOrder,
   Transaction,
   Voucher,
 } from '~/types';
@@ -99,7 +98,7 @@ export function formatStringToNumber(str: string) {
   return value;
 }
 
-function calculateTotalByCategory(orders: Order[] | TempOrder[], category: MenuGroupOptionCategory) {
+function calculateTotalByCategory(orders: Order[], category: MenuGroupOptionCategory) {
   return orders.reduce((acc, order) => {
     if (order.menu?.category !== category) return acc;
 
@@ -114,7 +113,7 @@ function calculateTotalByCategory(orders: Order[] | TempOrder[], category: MenuG
   }, 0);
 }
 
-function calculateTotalWithServiceCharge(orders: Order[] | TempOrder[], category: MenuGroupOptionCategory) {
+function calculateTotalWithServiceCharge(orders: Order[], category: MenuGroupOptionCategory) {
   return orders.reduce((acc, order) => {
     if (order.menu?.category !== category || order.menu?.hasServiceCharge === false) {
       return acc;
@@ -131,60 +130,56 @@ function calculateTotalWithServiceCharge(orders: Order[] | TempOrder[], category
   }, 0);
 }
 
-function calculateBuyOneGetOneDiscount(orders: Order[] | TempOrder[], promos: Promotion[], eligibleIds: Set<string>) {
-  let sameItemFree: number | null = null;
-  let cheapestEligible: number | null = null;
+// NOTE: This B1G1 logic gives 1 free item regardless of how many you buy, as long as you buy at least 2. If you want 2 free items for 4 bought, etc, change freeQty to Math.floor(qty / 2) and discount to freeQty * unitPrice
+// function calculateBuyOneGetOneDiscount(
+//   orders: Order[],
+//   promos: Promotion[],
+//   eligibleIds: Set<string> | null,
+// ) {
+//   let discount = 0;
 
-  // ---- A) SAME-ITEM B1G1 ----
-  orders.forEach((order) => {
+//   for (const order of orders) {
+//     const menuId = order.menu?.id;
+//     if (!menuId) continue;
+
+//     const eligible = eligibleIds === null ? true : eligibleIds.has(menuId);
+//     if (!eligible) continue;
+
+//     const qty = Number(order.qty ?? 0);
+//     if (qty < 2) continue;
+
+//     const unitPrice = getFinalUnitPrice(order, promos);
+
+//     const freeQty = Math.floor(qty / 2); // ✅ 2->1 free, 3->1 free, 4->2 free...
+//     discount += freeQty * unitPrice;
+//   }
+
+//   return Number(discount.toFixed(2));
+// }
+
+// NOTE: This logic gives you the cheapest eligible item for free, regardless of quantity. If you want to only give free item if you buy at least 1 eligible item, add a check for qty > 0 and only push one unit price per order line instead of qty times
+function calculateBuyOneGetOneDiscount(orders: Order[], promos: Promotion[], eligibleIds: Set<string> | null) {
+  let smallestFree: number | null = null;
+
+  for (const order of orders) {
     const menuId = order.menu?.id;
-    if (!menuId) return;
+    if (!menuId) continue;
 
     const eligible = eligibleIds === null ? true : eligibleIds.has(menuId);
-    if (!eligible) return;
+    if (!eligible) continue;
 
-    const qty = Number(order.qty || 0);
-    if (qty <= 0) return;
+    const qty = Number(order.qty ?? 0);
+    if (qty < 2) continue; // ✅ ONLY qty >= 2 qualifies
 
     const unitPrice = getFinalUnitPrice(order, promos);
 
-    // A) same-item B1G1 candidate
-    if (qty >= 2) {
-      sameItemFree = sameItemFree === null ? unitPrice : Math.min(sameItemFree, unitPrice);
-    }
+    smallestFree = smallestFree === null ? unitPrice : Math.min(smallestFree, unitPrice);
+  }
 
-    // B) cross-item candidate (any eligible)
-    cheapestEligible = cheapestEligible === null ? unitPrice : Math.min(cheapestEligible, unitPrice);
-  });
-
-  // must have at least 2 eligible units total
-  const totalEligibleQty = orders.reduce((sum, o) => {
-    const id = o.menu?.id;
-    if (!id) return sum;
-
-    const eligible = eligibleIds === null ? true : eligibleIds.has(id);
-    if (!eligible) return sum;
-
-    return sum + Number(o.qty || 0);
-  }, 0);
-
-  if (totalEligibleQty < 2) return 0;
-
-  // choose ONE free item only (cheapest valid)
-  const freePriceCandidates = [sameItemFree, cheapestEligible].filter((v) => v !== null && typeof v === 'number');
-
-  if (freePriceCandidates.length === 0) return 0;
-
-  // Math.min only called if array is non-empty and contains only numbers
-  const minCandidate = Math.min(...freePriceCandidates);
-  return Number(minCandidate.toFixed(2));
+  return smallestFree ? Number(smallestFree.toFixed(2)) : 0;
 }
 
-function calculateFreeAnyEligibleItemDiscount(
-  orders: Order[] | TempOrder[],
-  promos: Promotion[],
-  eligibleIds: Set<string> | null,
-) {
+function calculateFreeAnyEligibleItemDiscount(orders: Order[], promos: Promotion[], eligibleIds: Set<string> | null) {
   // build list of eligible order lines with their unit price
   const eligibleUnitPrices: number[] = [];
 
@@ -222,7 +217,7 @@ function calculateFreeAnyEligibleItemDiscount(
   return Number(Math.max(0, cheapest).toFixed(2));
 }
 
-function calculateEligibleTotal(orders: Order[] | TempOrder[], promos: Promotion[], eligibleIds: Set<string> | null) {
+function calculateEligibleTotal(orders: Order[], promos: Promotion[], eligibleIds: Set<string> | null) {
   return orders.reduce((acc, order) => {
     const menuId = order.menu?.id;
     if (!menuId) return acc;
@@ -234,7 +229,7 @@ function calculateEligibleTotal(orders: Order[] | TempOrder[], promos: Promotion
   }, 0);
 }
 
-function getFinalUnitPrice(order: Order | TempOrder, promos: Promotion[]) {
+function getFinalUnitPrice(order: Order, promos: Promotion[]) {
   const options = order.options || [];
   const addOns = order.addOns || [];
   const menuPrice = Number(order.menu?.price) || 0;
@@ -251,7 +246,7 @@ function getFinalUnitPrice(order: Order | TempOrder, promos: Promotion[]) {
   return promo.finalPrice / qty;
 }
 
-function getOrderLineTotal(order: Order | TempOrder, promos: Promotion[]) {
+function getOrderLineTotal(order: Order, promos: Promotion[]) {
   const options = order.options || [];
   const addOns = order.addOns || [];
   const menuPrice = Number(order.menu?.price) || 0;
@@ -280,7 +275,7 @@ function getEligibleMenuItemIdSet(menu_items: unknown) {
 }
 
 export function calculateTotals(
-  orders: Order[] | TempOrder[],
+  orders: Order[],
   diningOption: DiningOption,
   store: Store | null,
   discount: Discount | null,

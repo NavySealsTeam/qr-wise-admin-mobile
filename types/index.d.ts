@@ -115,20 +115,6 @@ export type MenuItem = {
 
 export type DiningOption = 'FOR_HERE' | 'TO_GO';
 
-export interface TempOrder {
-  id: string;
-  addOn?: AddOn;
-  menu?: MenuItem;
-  options: {
-    menuGroupOptionId: string;
-    selectionName: string;
-    selectionPrice: number;
-  }[];
-  addOns: AddOn[];
-  notes: string;
-  qty: number;
-}
-
 // Order
 export type Order = {
   id?: string;
