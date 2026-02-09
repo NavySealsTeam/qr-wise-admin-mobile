@@ -22,21 +22,16 @@ import { useAuth } from '~/context/AuthUserContext';
 import { getRandomPrompts } from '~/lib/constants';
 import { cn } from '~/lib/utils';
 
-export default function AIScreen() {
+export default function AICopyScreen() {
   const { isPremiumUser, setIsPremiumUser } = useAuth();
-  const player = useVideoPlayer(
-    require('~/assets/videos/chat.mp4'),
-    (player) => {
-      player.muted = true;
-      player.loop = true;
-      player.play();
-    },
-  );
+  const player = useVideoPlayer(require('~/assets/videos/chat.mp4'), (player) => {
+    player.muted = true;
+    player.loop = true;
+    player.play();
+  });
 
   const [appState, setAppState] = useState(AppState.currentState);
-  const [selectedPackage, setSelectedPackage] = useState<
-    'weekly' | 'yearly' | 'monthly'
-  >('yearly');
+  const [selectedPackage, setSelectedPackage] = useState<'weekly' | 'yearly' | 'monthly'>('yearly');
   const [askQuestionModal, setAskQuestionModal] = useState<boolean>(false);
   const [question, setQuestion] = useState<string>('');
   const questionRef = useRef<TextInput>(null);
@@ -79,26 +74,17 @@ export default function AIScreen() {
       <SafeAreaView className="flex-1">
         <View className="flex-row items-center justify-between px-4 py-1">
           <View className="size-10" />
-          <Text className="font-OnestSemiBold text-base text-default-primary">
-            Wise AI
-          </Text>
+          <Text className="font-OnestSemiBold text-base text-default-primary">Wise AI</Text>
           <View className="size-10" />
         </View>
         <View className="flex-1">
-          <VideoView
-            style={{ flex: 1 }}
-            player={player}
-            nativeControls={false}
-            contentFit="cover"
-          />
+          <VideoView style={{ flex: 1 }} player={player} nativeControls={false} contentFit="cover" />
         </View>
         {isPremiumUser ? (
           <View className="absolute bottom-[100px] left-0 right-0 p-5">
             <View className="rounded-xl bg-[#13161B] px-4 py-[14px]">
               <View className="flex-row items-center justify-between">
-                <Text className="font-OnestSemiBold text-sm text-default-primary">
-                  Suggested questions
-                </Text>
+                <Text className="font-OnestSemiBold text-sm text-default-primary">Suggested questions</Text>
               </View>
               <View className="mt-2.5 gap-2">
                 {getRandomPrompts(4).map((prompt, index) => (
@@ -113,9 +99,7 @@ export default function AIScreen() {
                       />
                     </Svg>
                     <View className="flex-1">
-                      <Text className="font-OnestMedium text-sm text-[#ECECED]">
-                        {prompt}
-                      </Text>
+                      <Text className="font-OnestMedium text-sm text-[#ECECED]">{prompt}</Text>
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -140,9 +124,7 @@ export default function AIScreen() {
                     </ClipPath>
                   </Defs>
                 </Svg>
-                <Text className="font-OnestMedium text-default-secondary">
-                  Ask anything
-                </Text>
+                <Text className="font-OnestMedium text-default-secondary">Ask anything</Text>
               </View>
               <View>
                 <Svg width="33" height="33" viewBox="0 0 33 33" fill="none">
@@ -161,10 +143,7 @@ export default function AIScreen() {
         ) : (
           <View className="absolute bottom-[100px] left-0 right-0 p-5">
             <View className="mb-[300px]">
-              <Image
-                source={require('~/assets/images/ai-card2.png')}
-                className="absolute left-0 h-[300px] w-[400px]"
-              />
+              <Image source={require('~/assets/images/ai-card2.png')} className="absolute left-0 h-[300px] w-[400px]" />
               <Image
                 source={require('~/assets/images/ai-card1.png')}
                 className="absolute right-0 h-[200px] w-[300px]"
@@ -175,9 +154,8 @@ export default function AIScreen() {
                 Let AI help you{'\n'}understand your business
               </Text>
               <Text className="font-OnestMedium text-sm text-default-secondary">
-                Gain valuable insights from your data with the power of AI.
-                Track trends, spot opportunities, and make smarter decisions —
-                all in one intuitive dashboard.
+                Gain valuable insights from your data with the power of AI. Track trends, spot opportunities, and make
+                smarter decisions — all in one intuitive dashboard.
               </Text>
             </View>
             <View className="mb-12 flex-row gap-3">
@@ -188,15 +166,9 @@ export default function AIScreen() {
                   'flex-1 gap-2 rounded-xl border border-[#22262F] bg-[#0c0e12] p-3',
                   selectedPackage === 'weekly' && 'border-[#C2F93A]',
                 )}>
-                <Text className="font-OnestMedium text-xs text-default-secondary">
-                  Weekly
-                </Text>
-                <Text className="font-OnestSemiBold text-2xl text-default-primary">
-                  ₱499
-                </Text>
-                <Text className="font-OnestRegular text-xs text-default-secondary">
-                  Per week
-                </Text>
+                <Text className="font-OnestMedium text-xs text-default-secondary">Weekly</Text>
+                <Text className="font-OnestSemiBold text-2xl text-default-primary">₱499</Text>
+                <Text className="font-OnestRegular text-xs text-default-secondary">Per week</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.8}
@@ -205,19 +177,11 @@ export default function AIScreen() {
                   'flex-1 gap-2 rounded-xl border border-[#22262F] bg-[#0c0e12] p-3',
                   selectedPackage === 'yearly' && 'border-[#C2F93A]',
                 )}>
-                <Text className="font-OnestMedium text-xs text-default-secondary">
-                  Annual
-                </Text>
-                <Text className="font-OnestSemiBold text-2xl text-default-primary">
-                  ₱7,999
-                </Text>
-                <Text className="font-OnestRegular text-xs text-default-secondary">
-                  Per year
-                </Text>
+                <Text className="font-OnestMedium text-xs text-default-secondary">Annual</Text>
+                <Text className="font-OnestSemiBold text-2xl text-default-primary">₱7,999</Text>
+                <Text className="font-OnestRegular text-xs text-default-secondary">Per year</Text>
                 <View className="absolute -top-3 self-center rounded-md bg-[#9CDF03] px-2.5 py-0.5">
-                  <Text className="font-OnestSemiBold text-xs text-[#0C0C0D]">
-                    Best Deal
-                  </Text>
+                  <Text className="font-OnestSemiBold text-xs text-[#0C0C0D]">Best Deal</Text>
                 </View>
               </TouchableOpacity>
               <TouchableOpacity
@@ -227,26 +191,16 @@ export default function AIScreen() {
                   'flex-1 gap-2 rounded-xl border border-[#22262F] bg-[#0c0e12] p-3',
                   selectedPackage === 'monthly' && 'border-[#C2F93A]',
                 )}>
-                <Text className="font-OnestMedium text-xs text-default-secondary">
-                  Monthly
-                </Text>
-                <Text className="font-OnestSemiBold text-2xl text-default-primary">
-                  ₱2,499
-                </Text>
-                <Text className="font-OnestRegular text-xs text-default-secondary">
-                  Per month
-                </Text>
+                <Text className="font-OnestMedium text-xs text-default-secondary">Monthly</Text>
+                <Text className="font-OnestSemiBold text-2xl text-default-primary">₱2,499</Text>
+                <Text className="font-OnestRegular text-xs text-default-secondary">Per month</Text>
               </TouchableOpacity>
             </View>
             <Text className="mb-6 text-center font-OnestMedium text-default-secondary">
               Try 7 days for free. Cancel Anytime
             </Text>
-            <Button
-              onPress={() => setIsPremiumUser(true)}
-              className="bg-[#9CDF03]">
-              <Text className="font-OnestSemiBold text-[#0C0C0D]">
-                Try AI Wise
-              </Text>
+            <Button onPress={() => setIsPremiumUser(true)} className="bg-[#9CDF03]">
+              <Text className="font-OnestSemiBold text-[#0C0C0D]">Try AI Wise</Text>
             </Button>
           </View>
         )}

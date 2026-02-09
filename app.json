@@ -26,7 +26,8 @@
         "backgroundColor": "#0C0E12"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.qrwise.business"
+      "package": "com.qrwise.business",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "bundler": "metro",
