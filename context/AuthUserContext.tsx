@@ -1,6 +1,6 @@
 import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
-import { onAuthStateChanged } from 'firebase/auth';
+import { User as FUser, onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 import { SharedValue, useSharedValue } from 'react-native-reanimated';
@@ -12,6 +12,7 @@ import { getLast10Digits } from '~/lib/utils';
 import { Store, User } from '~/types';
 
 type AuthContextType = {
+  fUser: FUser | null;
   user: User | null | undefined;
   setUser: (user: User | null | undefined) => void;
   loginUser: (user: User) => Promise<void>;
@@ -28,6 +29,7 @@ type AuthContextType = {
 };
 
 const AuthContext = createContext<AuthContextType>({
+  fUser: null,
   user: null,
   setUser: () => {
     throw new Error();
@@ -62,6 +64,7 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: PropsWithChildren) {
   const { updateWithMeta } = useFirestoreWrite();
 
+  const [fUser, setFUser] = useState<any>(null);
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [stores, setStores] = useState<Store[]>([]);
   const [store, setStore] = useState<Store | null>(null);
@@ -77,6 +80,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('🔥 Firebase auth state changed:', user);
+
+      setFUser(user || null);
 
       if (user) {
         await registerDevice(user.phoneNumber!);
@@ -209,6 +214,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const value = useMemo(
     () => ({
+      fUser,
       user,
       setUser,
       loginUser,
@@ -223,7 +229,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       openSheet,
       toggleSheet,
     }),
-    [user, store, isPremiumUser, openSheet],
+    [fUser, user, store, isPremiumUser, openSheet],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

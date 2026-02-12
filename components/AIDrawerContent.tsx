@@ -1,8 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
+import React, { useRef } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChatMessageRecord } from '~/types/chat';
+import { cn } from '~/lib/utils';
+import { ChatSession } from '~/types/chat';
 import {
   MaritesNewChatIcon,
   MaritesPlansCreditsIcon,
@@ -29,18 +30,66 @@ export default function AIDrawerContent({
   onSearchChats,
   onPlans,
   chats,
+  selectedChatId,
+  onSelectChat,
+  onLoadMoreChats,
+  hasMoreChats,
+  loadingChats,
 }: {
   onNewChat?: () => void;
   onSearchChats?: () => void;
   onPlans?: () => void;
-  chats?: ChatMessageRecord[];
+  chats?: ChatSession[];
+  selectedChatId?: string;
+  onSelectChat?: (chat: ChatSession) => void;
+  onLoadMoreChats?: () => void;
+  hasMoreChats?: boolean;
+  loadingChats?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const list = chats ?? [];
 
+  const inFlightRef = useRef(false);
+  const lastCallAtRef = useRef(0);
+
+  const handleScroll = React.useCallback(
+    (e: any) => {
+      if (!hasMoreChats) return;
+      if (loadingChats) return;
+      if (!onLoadMoreChats) return;
+
+      const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+
+      // how close to bottom before loading
+      const paddingToBottom = 120;
+      const isNearBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
+
+      if (!isNearBottom) return;
+
+      // ✅ spam guards
+      if (inFlightRef.current) return;
+      const now = Date.now();
+      if (now - lastCallAtRef.current < 800) return;
+
+      lastCallAtRef.current = now;
+      inFlightRef.current = true;
+
+      onLoadMoreChats();
+
+      setTimeout(() => {
+        inFlightRef.current = false;
+      }, 400);
+    },
+    [hasMoreChats, loadingChats, onLoadMoreChats],
+  );
+
   return (
     <View style={{ flex: 1, paddingHorizontal: 18, paddingTop: 8 }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 18 + insets.bottom }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 18 + insets.bottom }}
+        scrollEventThrottle={16}
+        onScroll={handleScroll}>
         <MaritesQRWiseIcon size="24" />
 
         {/* Top actions */}
@@ -61,17 +110,19 @@ export default function AIDrawerContent({
         {list.map((c) => (
           <TouchableOpacity
             key={c.id}
-            style={{
-              paddingVertical: 10,
-              paddingHorizontal: 12,
-              borderRadius: 12,
-              backgroundColor: c === list[0] ? 'rgba(255,255,255,0.08)' : 'transparent',
-              marginBottom: 6,
-            }}>
+            onPress={() => onSelectChat?.(c)}
+            className={cn('mb-1.5 rounded-[12px] px-3 py-2.5', c.id === selectedChatId ? 'bg-white/5' : 'transparent')}>
             <Text className="font-OnestRegular text-sm text-white">{c.title}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {loadingChats && (
+        <View className="mt-3 flex-row items-center justify-center py-2">
+          <Text className="text-xs text-white/60">Loading more chats…</Text>
+        </View>
+      )}
+
       {/* Bottom cards */}
       <View style={{ marginTop: 16, gap: 12 }}>
         <View className="flex-row items-center justify-between rounded-2xl bg-[#0D0D0D] px-2 py-2.5">

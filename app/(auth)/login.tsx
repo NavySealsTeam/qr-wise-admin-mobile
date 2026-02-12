@@ -165,7 +165,7 @@ export default function LoginScreen() {
                     onSubmitEditing={onPressSendOTP}
                     returnKeyType="done"
                   />
-                  <View className="ios:top-[11px] absolute bottom-0 left-3 top-2.5">
+                  <View className="ios:top-[11px] absolute bottom-0 left-3 top-3">
                     <Text className="text-[16px] text-default-tertiary">+63</Text>
                   </View>
                 </View>
