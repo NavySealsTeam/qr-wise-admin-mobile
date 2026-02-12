@@ -83,7 +83,7 @@ export default function AIScreen() {
     if (next) query.set('cursor', next);
 
     try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_AI_CHAT_API_URL}/chat/sessions?${query}`, {
+      const response = await fetch(`https://qr-wise-ai-chat-api.onrender.com/chat/sessions?${query}`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${await fUser?.getIdToken()}`,
@@ -112,16 +112,13 @@ export default function AIScreen() {
 
     setIsSessionLoading(true);
     try {
-      const res = await fetch(
-        `${process.env.EXPO_PUBLIC_AI_CHAT_API_URL}/chat/session/${sessionId}/messages?${query}`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${await fUser?.getIdToken()}`,
-            'X-Store-ID': storeId,
-          },
+      const res = await fetch(`https://qr-wise-ai-chat-api.onrender.com/chat/session/${sessionId}/messages?${query}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${await fUser?.getIdToken()}`,
+          'X-Store-ID': storeId,
         },
-      );
+      });
 
       const data = await res.json();
       console.log('fetchMessages >>', data);
