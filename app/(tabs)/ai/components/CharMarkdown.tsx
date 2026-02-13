@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Linking, Text, View } from 'react-native';
+import { Linking, ScrollView, Text, View } from 'react-native';
 import Markdown, { MarkdownIt } from 'react-native-markdown-display';
 
 const allowedProtocols = new Set(['http:', 'https:', 'mailto:']);
@@ -21,24 +21,26 @@ function isExternalUrl(url: string) {
 }
 
 export default function ChatMarkdown({ content }: { content: string }) {
-  // Enable some GFM-like behavior (tables, strikethrough)
-  // Task lists: react-native-markdown-display supports them via markdown-it plugins depending on version.
-  // We'll also add custom rendering for task list items below.
-  const md = useMemo(() => {
-    const m = MarkdownIt({ typographer: true, linkify: true });
-    // Most builds already include tables/strikethrough; if yours doesn’t, keep this anyway.
-    // (react-native-markdown-display internally uses markdown-it.)
-    return m;
-  }, []);
+  const md = useMemo(() => MarkdownIt({ typographer: true, linkify: true }), []);
 
   return (
     <Markdown
       markdownit={md}
-      // same idea as skipHtml
       rules={{
         // Disable HTML entirely (closest to skipHtml)
         html_block: () => null,
         html_inline: () => null,
+
+        // ✅ wrap tables so columns don’t get forced too narrow
+        table: (node, children, parent, styles) => (
+          <ScrollView
+            key={node.key}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingRight: 8 }}>
+            <View style={styles.table}>{children}</View>
+          </ScrollView>
+        ),
 
         // Link: apply safe URL + open with Linking
         link: (node, children, parent, styles) => {
@@ -52,7 +54,6 @@ export default function ChatMarkdown({ content }: { content: string }) {
               style={styles.link}
               onPress={() => {
                 if (!isSafe) return;
-                // For in-app routes like "/foo", you can hook this to expo-router instead.
                 if (href.startsWith('/') || href.startsWith('#')) return;
                 Linking.openURL(href).catch(() => {});
               }}>
@@ -203,6 +204,8 @@ export default function ChatMarkdown({ content }: { content: string }) {
           borderRadius: 10,
           overflow: 'hidden',
           marginVertical: 8,
+          // ✅ gives the table enough width so it doesn’t compress
+          minWidth: 320,
         },
         thead: {
           backgroundColor: '#1A1A1A',
@@ -212,12 +215,15 @@ export default function ChatMarkdown({ content }: { content: string }) {
           paddingVertical: 8,
           borderBottomWidth: 1,
           borderBottomColor: '#4D4D4D',
+          // ✅ prevent “forced wrap”
+          minWidth: 120,
         },
         td: {
           paddingHorizontal: 12,
           paddingVertical: 8,
           borderBottomWidth: 1,
           borderBottomColor: '#4D4D4D',
+          minWidth: 120,
         },
 
         // Checkbox (task list)

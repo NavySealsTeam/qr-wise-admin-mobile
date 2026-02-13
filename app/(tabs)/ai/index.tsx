@@ -1,4 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
+import { fetch } from 'expo/fetch';
 import { SearchIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -83,7 +84,7 @@ export default function AIScreen() {
     if (next) query.set('cursor', next);
 
     try {
-      const response = await fetch(`https://qr-wise-ai-chat-api.onrender.com/chat/sessions?${query}`, {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_AI_CHAT_API_URL}/chat/sessions?${query}`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${await fUser?.getIdToken()}`,
@@ -91,7 +92,6 @@ export default function AIScreen() {
         },
       });
       const data = await response.json();
-      console.log('fetchSessions >>', data);
 
       setSessions((prev) => (next ? [...prev, ...data.items] : data.items));
       setCursor(data.nextCursor);
@@ -112,16 +112,18 @@ export default function AIScreen() {
 
     setIsSessionLoading(true);
     try {
-      const res = await fetch(`https://qr-wise-ai-chat-api.onrender.com/chat/session/${sessionId}/messages?${query}`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${await fUser?.getIdToken()}`,
-          'X-Store-ID': storeId,
+      const res = await fetch(
+        `${process.env.EXPO_PUBLIC_AI_CHAT_API_URL}/chat/session/${sessionId}/messages?${query}`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${await fUser?.getIdToken()}`,
+            'X-Store-ID': storeId,
+          },
         },
-      });
+      );
 
       const data = await res.json();
-      console.log('fetchMessages >>', data);
 
       setMessages((prev) => (next ? [...prev, ...data.items] : data.items));
       setMessagesCursor(data.nextCursor);
@@ -141,7 +143,14 @@ export default function AIScreen() {
     const text = msg.trim();
     if (!text) return;
 
+    // clear input
+    setQ('');
+    Keyboard.dismiss();
+
     setIsChatView(true);
+    setIsStreaming(true); // ✅ start streaming state
+    setErrorMessage(null); // ✅ clear previous error
+    setStreamStatusText('Thinking...');
 
     const userMessage: ChatMessage = {
       id: uuid.v4(),
@@ -167,125 +176,135 @@ export default function AIScreen() {
 
     let resolvedSessionId = selectedSessionId || undefined;
 
+    // ✅ token throttling to avoid lag (optional but recommended)
+    let pendingText = '';
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const flush = () => {
+      if (!pendingText) return;
+      const chunk = pendingText;
+      pendingText = '';
+
+      setMessages((prev) =>
+        prev.map((m) => (m.id === assistantMessageId ? { ...m, content: m.content + chunk, status: 'streaming' } : m)),
+      );
+    };
+
+    const scheduleFlush = () => {
+      if (flushTimer) return;
+      flushTimer = setTimeout(() => {
+        flushTimer = null;
+        flush();
+      }, 30);
+    };
+
     try {
-      const response = await fetch('/api/chat/stream', {
+      const response = await fetch('https://marites-ai.netlify.app/api/chat/stream', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${await fUser?.getIdToken()}`,
           'X-Store-ID': storeId,
           'Content-Type': 'application/json',
+          Accept: 'text/event-stream', // ✅ helps some proxies
         },
         body: JSON.stringify({
           message: text,
           sessionId: resolvedSessionId,
         }),
         signal: controller.signal,
-        cache: 'no-store',
       });
 
-      if (!response.ok) {
-        throw await toApiError(response);
-      }
+      if (!response.ok) throw await toApiError(response);
 
-      if (!response.body) {
-        throw new Error('Missing response body for stream');
-      }
+      const body = (response as any).body as ReadableStream<Uint8Array> | undefined;
+      if (!body) throw new Error('Missing response body for stream');
 
-      const reader = response.body.getReader();
+      const reader = body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
 
-      while (true) {
+      let buffer = '';
+      let shouldStop = false;
+
+      const onEvent = (event: StreamEvent) => {
+        if (event.event === 'session' && event.data.sessionId) {
+          pendingStreamSessionIdRef.current = event.data.sessionId;
+          resolvedSessionId = event.data.sessionId;
+          setSelectedSessionId(event.data.sessionId);
+          return; // ✅ return from handler only
+        }
+
+        if (event.event === 'status') {
+          setStreamStatusText(toStatusText(event.data.message || event.data.phase || 'Generating response'));
+          return;
+        }
+
+        if (event.event === 'formatting') {
+          setStreamStatusText(
+            toStatusText(
+              event.data.decisionReason || event.data.fallbackReason || event.data.type || 'Validating response',
+            ),
+          );
+          return;
+        }
+
+        if (event.event === 'token') {
+          const chunk = event.data.token || '';
+          if (!chunk) return;
+
+          setStreamStatusText('Writing response...');
+          pendingText += chunk;
+          scheduleFlush();
+          return;
+        }
+
+        if (event.event === 'error') {
+          const message = event.data.message || 'Failed to generate response';
+
+          flush();
+          setErrorMessage(message);
+          setStreamStatusText('Response failed');
+
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMessageId ? { ...m, content: m.content || message, status: 'error' } : m,
+            ),
+          );
+
+          shouldStop = true;
+          return;
+        }
+
+        if (event.event === 'done') {
+          if (event.data.sessionId) {
+            resolvedSessionId = event.data.sessionId;
+            setSelectedSessionId(event.data.sessionId);
+          }
+
+          flush();
+
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMessageId ? { ...m, status: m.status === 'error' ? 'error' : 'complete' } : m,
+            ),
+          );
+
+          setStreamStatusText('Response completed');
+          shouldStop = true;
+        }
+      };
+
+      while (!shouldStop) {
         const { value, done } = await reader.read();
 
         if (done) {
-          buffer += decoder.decode();
+          buffer += decoder.decode(value || new Uint8Array(), { stream: false });
           const parsed = parseSSE(buffer);
+          buffer = parsed.rest;
+
           for (const e of parsed.events) {
-            const data = JSON.parse(e.data) as StreamEvent['data'];
-            const event = {
-              event: e.event as StreamEvent['event'],
-              data,
-            } as StreamEvent;
-
-            if (event.event === 'session' && event.data.sessionId) {
-              pendingStreamSessionIdRef.current = event.data.sessionId;
-              resolvedSessionId = event.data.sessionId;
-              setSelectedSessionId(event.data.sessionId);
-              return;
-            }
-
-            if (event.event === 'status') {
-              const nextStatus = toStatusText(event.data.message || event.data.phase || 'Generating response');
-              setStreamStatusText(nextStatus);
-              return;
-            }
-
-            if (event.event === 'formatting') {
-              const nextStatus = toStatusText(
-                event.data.decisionReason || event.data.fallbackReason || event.data.type || 'Validating response',
-              );
-              setStreamStatusText(nextStatus);
-              return;
-            }
-
-            if (event.event === 'token') {
-              const chunk = event.data.token || '';
-              if (!chunk) return;
-
-              setStreamStatusText('Writing response...');
-
-              setMessages((prev) =>
-                prev.map((message) =>
-                  message.id === assistantMessageId
-                    ? {
-                        ...message,
-                        content: `${message.content}${chunk}`,
-                        status: 'streaming',
-                      }
-                    : message,
-                ),
-              );
-              return;
-            }
-
-            if (event.event === 'error') {
-              const message = event.data.message || 'Failed to generate response';
-
-              setErrorMessage(message);
-              setStreamStatusText('Response failed');
-              setMessages((prev) =>
-                prev.map((item) =>
-                  item.id === assistantMessageId
-                    ? {
-                        ...item,
-                        content: item.content || message,
-                        status: 'error',
-                      }
-                    : item,
-                ),
-              );
-              return;
-            }
-
-            if (event.event === 'done') {
-              if (event.data.sessionId) {
-                resolvedSessionId = event.data.sessionId;
-                setSelectedSessionId(event.data.sessionId);
-              }
-
-              setMessages((prev) =>
-                prev.map((item) =>
-                  item.id === assistantMessageId
-                    ? {
-                        ...item,
-                        status: item.status === 'error' ? 'error' : 'complete',
-                      }
-                    : item,
-                ),
-              );
-              setStreamStatusText('Response completed');
-            }
+            const event: StreamEvent = { event: e.event as any, data: JSON.parse(e.data) };
+            onEvent(event);
+            if (shouldStop) break;
           }
           break;
         }
@@ -295,137 +314,44 @@ export default function AIScreen() {
         buffer = parsed.rest;
 
         for (const e of parsed.events) {
-          const data = JSON.parse(e.data) as StreamEvent['data'];
-          const event = {
-            event: e.event as StreamEvent['event'],
-            data,
-          } as StreamEvent;
-
-          if (event.event === 'session' && event.data.sessionId) {
-            pendingStreamSessionIdRef.current = event.data.sessionId;
-            resolvedSessionId = event.data.sessionId;
-            setSelectedSessionId(event.data.sessionId);
-            return;
-          }
-
-          if (event.event === 'status') {
-            const nextStatus = toStatusText(event.data.message || event.data.phase || 'Generating response');
-            setStreamStatusText(nextStatus);
-            return;
-          }
-
-          if (event.event === 'formatting') {
-            const nextStatus = toStatusText(
-              event.data.decisionReason || event.data.fallbackReason || event.data.type || 'Validating response',
-            );
-            setStreamStatusText(nextStatus);
-            return;
-          }
-
-          if (event.event === 'token') {
-            const chunk = event.data.token || '';
-            if (!chunk) return;
-
-            setStreamStatusText('Writing response...');
-
-            setMessages((prev) =>
-              prev.map((message) =>
-                message.id === assistantMessageId
-                  ? {
-                      ...message,
-                      content: `${message.content}${chunk}`,
-                      status: 'streaming',
-                    }
-                  : message,
-              ),
-            );
-            return;
-          }
-
-          if (event.event === 'error') {
-            const message = event.data.message || 'Failed to generate response';
-
-            setErrorMessage(message);
-            setStreamStatusText('Response failed');
-            setMessages((prev) =>
-              prev.map((item) =>
-                item.id === assistantMessageId
-                  ? {
-                      ...item,
-                      content: item.content || message,
-                      status: 'error',
-                    }
-                  : item,
-              ),
-            );
-            return;
-          }
-
-          if (event.event === 'done') {
-            if (event.data.sessionId) {
-              resolvedSessionId = event.data.sessionId;
-              setSelectedSessionId(event.data.sessionId);
-            }
-
-            setMessages((prev) =>
-              prev.map((item) =>
-                item.id === assistantMessageId
-                  ? {
-                      ...item,
-                      status: item.status === 'error' ? 'error' : 'complete',
-                    }
-                  : item,
-              ),
-            );
-            setStreamStatusText('Response completed');
-          }
+          const event: StreamEvent = { event: e.event as any, data: JSON.parse(e.data) };
+          onEvent(event);
+          if (shouldStop) break;
         }
       }
     } catch (error: unknown) {
-      console.log('streaming error', error);
       const isAbortError = error && (error as any).name === 'AbortError';
 
       if (isAbortError) {
+        flush();
         setStreamStatusText('Generation stopped');
         setMessages((prev) =>
-          prev.map((item) =>
-            item.id === assistantMessageId
-              ? {
-                  ...item,
-                  status: 'cancelled',
-                  content: item.content || 'Generation stopped.',
-                }
-              : item,
+          prev.map((m) =>
+            m.id === assistantMessageId
+              ? { ...m, status: 'cancelled', content: m.content || 'Generation stopped.' }
+              : m,
           ),
         );
       } else {
         const message = error instanceof Error ? error.message : 'Failed to generate response';
 
+        flush();
         setErrorMessage(message);
         setStreamStatusText('Response failed');
         setMessages((prev) =>
-          prev.map((item) =>
-            item.id === assistantMessageId
-              ? {
-                  ...item,
-                  content: item.content || message,
-                  status: 'error',
-                }
-              : item,
-          ),
+          prev.map((m) => (m.id === assistantMessageId ? { ...m, content: m.content || message, status: 'error' } : m)),
         );
       }
     } finally {
+      if (flushTimer) clearTimeout(flushTimer);
+      flush(); // final flush
+
       streamAbortRef.current = null;
       pendingStreamSessionIdRef.current = null;
       setIsStreaming(false);
-      // Refetch sessions to update last active time and order
+
       fetchSessions();
     }
-
-    // clear input
-    setQ('');
-    Keyboard.dismiss();
   };
 
   const handleRetry = useCallback(

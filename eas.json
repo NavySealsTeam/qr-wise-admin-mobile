@@ -34,8 +34,7 @@
         "NPM_CONFIG_AUDIT": "false",
         "NPM_CONFIG_PROGRESS": "false",
         "NPM_CONFIG_LOGLEVEL": "warn",
-        "NPM_FLAGS": "--legacy-peer-deps",
-        "EXPO_PUBLIC_AI_CHAT_API_URL": "https://qr-wise-ai-chat-api.onrender.com"
+        "NPM_FLAGS": "--legacy-peer-deps"
       }
     }
   },
