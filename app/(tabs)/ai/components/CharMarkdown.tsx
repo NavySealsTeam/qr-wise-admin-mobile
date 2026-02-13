@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Linking, ScrollView, Text, View } from 'react-native';
+import { Linking, Text, View } from 'react-native';
 import Markdown, { MarkdownIt } from 'react-native-markdown-display';
 
 const allowedProtocols = new Set(['http:', 'https:', 'mailto:']);
@@ -33,13 +33,9 @@ export default function ChatMarkdown({ content }: { content: string }) {
 
         // ✅ wrap tables so columns don’t get forced too narrow
         table: (node, children, parent, styles) => (
-          <ScrollView
-            key={node.key}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingRight: 8 }}>
-            <View style={styles.table}>{children}</View>
-          </ScrollView>
+          <View key={node.key} style={styles.table}>
+            {children}
+          </View>
         ),
 
         // Link: apply safe URL + open with Linking
