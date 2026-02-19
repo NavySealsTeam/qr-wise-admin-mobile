@@ -234,16 +234,16 @@ export default function AIScreen() {
         }
 
         if (event.event === 'status') {
-          setStreamStatusText(toStatusText(event.data.message || event.data.phase || 'Generating response'));
+          const nextStatus = toStatusText(event.data.message || event.data.phase || 'Generating response');
+          setStreamStatusText(nextStatus);
           return;
         }
 
         if (event.event === 'formatting') {
-          setStreamStatusText(
-            toStatusText(
-              event.data.decisionReason || event.data.fallbackReason || event.data.type || 'Validating response',
-            ),
+          const nextStatus = toStatusText(
+            event.data.decisionReason || event.data.fallbackReason || event.data.type || 'Validating response',
           );
+          setStreamStatusText(nextStatus);
           return;
         }
 
@@ -254,6 +254,28 @@ export default function AIScreen() {
           setStreamStatusText('Writing response...');
           pendingText += chunk;
           scheduleFlush();
+          return;
+        }
+
+        if (event.event === 'response_replace') {
+          const replacement = event.data.response || '';
+          if (!replacement) return;
+
+          const nextStatus =
+            event.data.reason === 'format_adjustment' ? 'Refining response format' : 'Applying validated response';
+          setStreamStatusText(nextStatus);
+
+          setMessages((prev) =>
+            prev.map((message) =>
+              message.id === assistantMessageId
+                ? {
+                    ...message,
+                    content: replacement,
+                    status: 'streaming',
+                  }
+                : message,
+            ),
+          );
           return;
         }
 

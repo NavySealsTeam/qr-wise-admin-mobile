@@ -21,6 +21,14 @@ export type StreamEvent =
   | { event: 'status'; data: { phase?: string; message?: string } }
   | { event: 'session'; data: { sessionId?: string } }
   | {
+      event: 'response_replace';
+      data: {
+        sessionId?: string;
+        response?: string;
+        reason?: 'validated_retry' | 'format_adjustment';
+      };
+    }
+  | {
       event: 'formatting';
       data: {
         event?: string;
