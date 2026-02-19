@@ -234,16 +234,16 @@ export default function AIScreen() {
         }
 
         if (event.event === 'status') {
-          const nextStatus = toStatusText(event.data.message || event.data.phase || 'Generating response');
-          setStreamStatusText(nextStatus);
+          setStreamStatusText(toStatusText(event.data.message || event.data.phase || 'Generating response'));
           return;
         }
 
         if (event.event === 'formatting') {
-          const nextStatus = toStatusText(
-            event.data.decisionReason || event.data.fallbackReason || event.data.type || 'Validating response',
+          setStreamStatusText(
+            toStatusText(
+              event.data.decisionReason || event.data.fallbackReason || event.data.type || 'Validating response',
+            ),
           );
-          setStreamStatusText(nextStatus);
           return;
         }
 
@@ -261,9 +261,10 @@ export default function AIScreen() {
           const replacement = event.data.response || '';
           if (!replacement) return;
 
-          const nextStatus =
-            event.data.reason === 'format_adjustment' ? 'Refining response format' : 'Applying validated response';
-          setStreamStatusText(nextStatus);
+          flush();
+          setStreamStatusText(
+            event.data.reason === 'format_adjustment' ? 'Refining response format' : 'Applying validated response',
+          );
 
           setMessages((prev) =>
             prev.map((message) =>
