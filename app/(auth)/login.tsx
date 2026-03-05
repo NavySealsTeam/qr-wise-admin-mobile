@@ -71,7 +71,7 @@ export default function LoginScreen() {
       const number = `0${phoneNumber}`;
       const message = encodeURIComponent(`Your verification code is ${otp}`);
       const res = await fetch(
-        `https://api.semaphore.co/api/v4/messages?apikey=${apiKey}&number=${number}&message=${message}&sendername=${sendername}`,
+        `https://api.semaphore.co/api/v4/priority?apikey=${apiKey}&number=${number}&message=${message}&sendername=${sendername}`,
         { method: 'POST' },
       );
       const json = await res.json();

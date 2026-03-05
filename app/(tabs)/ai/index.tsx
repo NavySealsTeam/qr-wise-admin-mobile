@@ -89,6 +89,7 @@ export default function AIScreen() {
         headers: {
           Authorization: `Bearer ${await fUser?.getIdToken()}`,
           'X-Store-ID': storeId,
+          'X-Owner-ID': 'Punched',
         },
       });
       const data = await response.json();
@@ -119,6 +120,7 @@ export default function AIScreen() {
           headers: {
             Authorization: `Bearer ${await fUser?.getIdToken()}`,
             'X-Store-ID': storeId,
+            'X-Owner-ID': 'Punched',
           },
         },
       );
@@ -204,6 +206,7 @@ export default function AIScreen() {
         headers: {
           Authorization: `Bearer ${await fUser?.getIdToken()}`,
           'X-Store-ID': storeId,
+          'X-Owner-ID': 'Punched',
           'Content-Type': 'application/json',
           Accept: 'text/event-stream', // ✅ helps some proxies
         },
