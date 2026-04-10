@@ -246,14 +246,18 @@ export interface Insight {
 
 export type Voucher = {
   id?: string;
-  code: string;
-  used: boolean;
-  rate: number;
   name: string;
-  storeId: string;
-  createdAt: Timestamp;
+  code: string;
+  usageLimit: number | null;
+  usedCount: number;
+  used: boolean;
   usedAt: Timestamp;
   expiredAt: Timestamp;
+  noExpiry: boolean;
+  rateType: RateType;
+  rate: number;
+  storeId: string;
+  createdAt: Timestamp;
   food: number;
   beverage: number;
   bakery: number;
@@ -268,6 +272,8 @@ export type Voucher = {
     offer_value: string;
   };
 };
+
+export type RateType = 'PERCENTAGE' | 'FIXED';
 
 export interface Promotion {
   id: string;

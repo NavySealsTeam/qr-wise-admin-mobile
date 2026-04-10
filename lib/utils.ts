@@ -3,18 +3,7 @@ import { subDays } from 'date-fns';
 import pluralize from 'pluralize';
 import { twMerge } from 'tailwind-merge';
 import { MenuItemMovementWithComparison } from '~/hooks/useProductMovementInsightGPT';
-import {
-  DiningOption,
-  Discount,
-  MenuGroupOptionCategory,
-  MenuItem,
-  OfferType,
-  Order,
-  Promotion,
-  Store,
-  Transaction,
-  Voucher,
-} from '~/types';
+import { DiningOption, Discount, MenuGroupOptionCategory, MenuItem, Order, Store, Transaction, Voucher } from '~/types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -99,7 +88,7 @@ export function formatStringToNumber(str: string) {
 }
 
 function calculateTotalByCategory(orders: Order[], category: MenuGroupOptionCategory) {
-  return orders.reduce((acc, order) => {
+  return (orders || []).reduce((acc, order) => {
     if (order.menu?.category !== category) return acc;
 
     const options = order.options || [];
@@ -109,12 +98,14 @@ function calculateTotalByCategory(orders: Order[], category: MenuGroupOptionCate
     const selectionPrice = options.reduce((sum, opt) => sum + Number(opt.selectionPrice || 0), 0);
     const addOnPrice = addOns.reduce((sum, addOn) => sum + Number(addOn.price || 0), 0);
 
-    return acc + order.qty * (menuPrice + selectionPrice + addOnPrice);
+    const total = order.qty * (menuPrice + selectionPrice + addOnPrice);
+
+    return acc + total;
   }, 0);
 }
 
 function calculateTotalWithServiceCharge(orders: Order[], category: MenuGroupOptionCategory) {
-  return orders.reduce((acc, order) => {
+  return (orders || []).reduce((acc, order) => {
     if (order.menu?.category !== category || order.menu?.hasServiceCharge === false) {
       return acc;
     }
@@ -126,39 +117,14 @@ function calculateTotalWithServiceCharge(orders: Order[], category: MenuGroupOpt
     const selectionPrice = options.reduce((sum, option) => sum + Number(option.selectionPrice || 0), 0);
     const addOnPrice = addOns.reduce((sum, addOn) => sum + Number(addOn.price || 0), 0);
 
-    return acc + order.qty * (menuPrice + selectionPrice + addOnPrice);
+    const total = order.qty * (menuPrice + selectionPrice + addOnPrice);
+
+    return acc + total;
   }, 0);
 }
 
-// NOTE: This B1G1 logic gives 1 free item regardless of how many you buy, as long as you buy at least 2. If you want 2 free items for 4 bought, etc, change freeQty to Math.floor(qty / 2) and discount to freeQty * unitPrice
-// function calculateBuyOneGetOneDiscount(
-//   orders: Order[],
-//   promos: Promotion[],
-//   eligibleIds: Set<string> | null,
-// ) {
-//   let discount = 0;
-
-//   for (const order of orders) {
-//     const menuId = order.menu?.id;
-//     if (!menuId) continue;
-
-//     const eligible = eligibleIds === null ? true : eligibleIds.has(menuId);
-//     if (!eligible) continue;
-
-//     const qty = Number(order.qty ?? 0);
-//     if (qty < 2) continue;
-
-//     const unitPrice = getFinalUnitPrice(order, promos);
-
-//     const freeQty = Math.floor(qty / 2); // ✅ 2->1 free, 3->1 free, 4->2 free...
-//     discount += freeQty * unitPrice;
-//   }
-
-//   return Number(discount.toFixed(2));
-// }
-
 // NOTE: This logic gives you the cheapest eligible item for free, regardless of quantity. If you want to only give free item if you buy at least 1 eligible item, add a check for qty > 0 and only push one unit price per order line instead of qty times
-function calculateBuyOneGetOneDiscount(orders: Order[], promos: Promotion[], eligibleIds: Set<string> | null) {
+export function calculateBuyOneGetOneDiscount(orders: Order[], eligibleIds: Set<string> | null) {
   let smallestFree: number | null = null;
 
   for (const order of orders) {
@@ -171,7 +137,7 @@ function calculateBuyOneGetOneDiscount(orders: Order[], promos: Promotion[], eli
     const qty = Number(order.qty ?? 0);
     if (qty < 2) continue; // ✅ ONLY qty >= 2 qualifies
 
-    const unitPrice = getFinalUnitPrice(order, promos);
+    const unitPrice = getFinalUnitPrice(order);
 
     smallestFree = smallestFree === null ? unitPrice : Math.min(smallestFree, unitPrice);
   }
@@ -179,7 +145,7 @@ function calculateBuyOneGetOneDiscount(orders: Order[], promos: Promotion[], eli
   return smallestFree ? Number(smallestFree.toFixed(2)) : 0;
 }
 
-function calculateFreeAnyEligibleItemDiscount(orders: Order[], promos: Promotion[], eligibleIds: Set<string> | null) {
+export function calculateFreeAnyEligibleItemDiscount(orders: Order[], eligibleIds: Set<string> | null) {
   // build list of eligible order lines with their unit price
   const eligibleUnitPrices: number[] = [];
 
@@ -198,11 +164,7 @@ function calculateFreeAnyEligibleItemDiscount(orders: Order[], promos: Promotion
     const selectionPrice = options.reduce((s, o) => s + Number(o.selectionPrice || 0), 0);
     const addOnPrice = addOns.reduce((s, a) => s + Number(a.price || 0), 0);
 
-    const unitRaw = menuPrice + selectionPrice + addOnPrice;
-
-    // if you want voucher to respect promos per-item:
-    const promo = resolvePromotion(menuId, unitRaw, promos);
-    const unitFinal = Number(promo.finalPrice || 0);
+    const unitFinal = menuPrice + selectionPrice + addOnPrice;
 
     // if qty is 3, you still only get 1 free, so just push one unit price
     eligibleUnitPrices.push(unitFinal);
@@ -217,7 +179,7 @@ function calculateFreeAnyEligibleItemDiscount(orders: Order[], promos: Promotion
   return Number(Math.max(0, cheapest).toFixed(2));
 }
 
-function calculateEligibleTotal(orders: Order[], promos: Promotion[], eligibleIds: Set<string> | null) {
+export function calculateEligibleTotal(orders: Order[] = [], eligibleIds: Set<string> | null) {
   return orders.reduce((acc, order) => {
     const menuId = order.menu?.id;
     if (!menuId) return acc;
@@ -225,11 +187,11 @@ function calculateEligibleTotal(orders: Order[], promos: Promotion[], eligibleId
     const eligible = eligibleIds === null ? true : eligibleIds.has(menuId);
     if (!eligible) return acc;
 
-    return acc + getOrderLineTotal(order, promos);
+    return acc + getOrderLineTotal(order);
   }, 0);
 }
 
-function getFinalUnitPrice(order: Order, promos: Promotion[]) {
+export function getFinalUnitPrice(order: Order) {
   const options = order.options || [];
   const addOns = order.addOns || [];
   const menuPrice = Number(order.menu?.price) || 0;
@@ -241,12 +203,10 @@ function getFinalUnitPrice(order: Order, promos: Promotion[]) {
   const qty = Number(order.qty || 1);
 
   const lineTotal = unitRaw * qty;
-  const promo = resolvePromotion(order.menu!.id, lineTotal, promos);
-
-  return promo.finalPrice / qty;
+  return lineTotal / qty;
 }
 
-function getOrderLineTotal(order: Order, promos: Promotion[]) {
+export function getOrderLineTotal(order: Order) {
   const options = order.options || [];
   const addOns = order.addOns || [];
   const menuPrice = Number(order.menu?.price) || 0;
@@ -255,13 +215,10 @@ function getOrderLineTotal(order: Order, promos: Promotion[]) {
   const addOnPrice = addOns.reduce((sum, addOn) => sum + Number(addOn.price || 0), 0);
 
   const rawTotal = order.qty * (menuPrice + selectionPrice + addOnPrice);
-
-  // if you want voucher to respect promos:
-  const promo = resolvePromotion(order.menu?.id!, rawTotal, promos);
-  return promo.finalPrice;
+  return rawTotal;
 }
 
-function getEligibleMenuItemIdSet(menu_items: unknown) {
+export function getEligibleMenuItemIdSet(menu_items: unknown) {
   const isAllMenuItems = String(menu_items || '').toLowerCase() === 'all menu items';
   if (isAllMenuItems) return null as Set<string> | null; // null = all eligible
 
@@ -280,14 +237,18 @@ export function calculateTotals(
   store: Store | null,
   discount: Discount | null,
   voucher: Voucher | null,
-  promos: Promotion[] = [],
 ) {
+  const vatRate = Number(store?.vatTaxPercentage || 0) / 100;
+  const scRate = Number(store?.serviceChargePercentage || 0) / 100;
+  const discountRate = Number(discount?.rate || 0) / 100;
+  const voucherRate = voucher?.rateType === 'FIXED' ? voucher?.rate : Number(voucher?.rate || 0) / 100;
+
   const totalBeverageOrderAmount = calculateTotalByCategory(orders, 'BEVERAGE');
   const totalFoodOrderAmount = calculateTotalByCategory(orders, 'FOOD');
   const totalBeansOrderAmount = calculateTotalByCategory(orders, 'BEANS');
   const totalBakeryOrderAmount = calculateTotalByCategory(orders, 'BAKERY');
   const totalLiquorOrderAmount = calculateTotalByCategory(orders, 'LIQUOR');
-  const totalAddOnsOrderAmount = orders.reduce((acc, order) => {
+  const totalAddOnsOrderAmount = (orders || []).reduce((acc, order) => {
     if (!order.addOn) return acc;
     const addOnPrice = Number(order.addOn.price);
     return acc + order.qty * addOnPrice;
@@ -298,14 +259,14 @@ export function calculateTotals(
   const totalFoodOrderWithServiceChargeAmount = calculateTotalWithServiceCharge(orders, 'FOOD');
   const totalBakeryOrderWithServiceChargeAmount = calculateTotalWithServiceCharge(orders, 'BAKERY');
   const totalLiquorOrderWithServiceChargeAmount = calculateTotalWithServiceCharge(orders, 'LIQUOR');
-  const totalAddOnsWithServiceChargeAmount = orders.reduce((acc, order) => {
+  const totalAddOnsWithServiceChargeAmount = (orders || []).reduce((acc, order) => {
     if (!order.addOn || order.addOn.hasServiceCharge === false) return acc;
     const addOnPrice = Number(order.addOn.price);
     return acc + order.qty * addOnPrice;
   }, 0);
   // end with service charge
 
-  const quantity = orders.reduce((acc, order) => {
+  const quantity = (orders || []).reduce((acc, order) => {
     return acc + order.qty;
   }, 0);
 
@@ -316,17 +277,19 @@ export function calculateTotals(
     totalBeansOrderAmount +
     totalBakeryOrderAmount +
     totalLiquorOrderAmount;
-  const subtotal = Number((totalOrderAmount / (Number(store?.vatTaxPercentage) / 100)).toFixed(2));
-  const vat = discount && discount.isSpecial ? 0 : totalOrderAmount - subtotal;
-  const discounted = Number(
-    (discount ? (discount.isSpecial ? subtotal : subtotal + vat) * (Number(discount?.rate) / 100) : 0).toFixed(2),
-  );
+
+  const totalWithServiceChargeAmount =
+    totalBeverageOrderWithServiceChargeAmount +
+    totalFoodOrderWithServiceChargeAmount +
+    totalBakeryOrderWithServiceChargeAmount +
+    totalLiquorOrderWithServiceChargeAmount +
+    totalAddOnsWithServiceChargeAmount;
 
   let voucherDiscounted = 0;
   if (voucher?.fAndBRedemption && voucher?.fAndBRedemption?.offer_type) {
-    const offerType = voucher.fAndBRedemption.offer_type as OfferType;
+    const offerType = voucher.fAndBRedemption.offer_type;
     const eligibleIds = getEligibleMenuItemIdSet(voucher.fAndBRedemption.menu_items);
-    const eligibleTotal = calculateEligibleTotal(orders, promos, eligibleIds);
+    const eligibleTotal = calculateEligibleTotal(orders, eligibleIds);
 
     if (offerType === 'FIXED_AMOUNT' || offerType === 'BUNDLE_PRICE') {
       const fixed = Math.max(0, Number(voucher.fAndBRedemption.offer_value || 0));
@@ -335,43 +298,53 @@ export function calculateTotals(
       const rate = Math.max(0, Math.min(1, Number(voucher.fAndBRedemption.offer_value || 0) / 100));
       voucherDiscounted = Math.min(Number((eligibleTotal * rate).toFixed(2)), eligibleTotal);
     } else if (offerType === 'BUY_1_GET_1') {
-      voucherDiscounted = calculateBuyOneGetOneDiscount(orders, promos, eligibleIds!);
+      voucherDiscounted = calculateBuyOneGetOneDiscount(orders, eligibleIds!);
     } else if (offerType === 'FREE_ITEM') {
       const offerValue = JSON.parse(voucher.fAndBRedemption.offer_value);
       const eligibleIds = getEligibleMenuItemIdSet([offerValue]);
-      voucherDiscounted = calculateFreeAnyEligibleItemDiscount(orders, promos, eligibleIds);
+      voucherDiscounted = calculateFreeAnyEligibleItemDiscount(orders, eligibleIds);
     }
 
     voucherDiscounted = Number(voucherDiscounted.toFixed(2));
   } else if (voucher) {
     // fallback: normal voucher applies to everything (if you still want this behavior)
-    voucherDiscounted = Number(((subtotal + vat) * (voucher.rate / 100)).toFixed(2));
+    voucherDiscounted = -Number((totalOrderAmount * voucherRate).toFixed(2));
   }
 
-  const totalWithServiceChargeAmount =
-    totalBeverageOrderWithServiceChargeAmount +
-    totalFoodOrderWithServiceChargeAmount +
-    totalBakeryOrderWithServiceChargeAmount +
-    totalLiquorOrderWithServiceChargeAmount +
-    totalAddOnsWithServiceChargeAmount;
   const withTogoCharge = totalFoodOrderAmount + totalAddOnsOrderAmount;
   const togoCharge = diningOption === 'TO_GO' && withTogoCharge > 0 ? Number(store?.togoCharge) : 0;
 
-  let serviceCharge = 0;
-  if (diningOption === 'FOR_HERE' && store?.serviceCharge && totalWithServiceChargeAmount > 0) {
-    const lessVat = Number((totalWithServiceChargeAmount / (Number(store?.vatTaxPercentage) / 100)).toFixed(2));
-    const lessDiscount = Number((discount ? Number(discount.rate) / 100 : voucher ? voucher.rate / 100 : 0).toFixed(2));
-    serviceCharge = Number(
-      ((lessVat - lessVat * lessDiscount) * (Number(store?.serviceChargePercentage) / 100)).toFixed(2),
-    );
+  const subtotal = totalOrderAmount + voucherDiscounted;
+  let vatNet = Number((subtotal / vatRate).toFixed(2));
+  let vat = Number((vatNet * 0.12).toFixed(2));
+
+  const discountType = (discount?.type || '').toLowerCase();
+  const isSpecial = !!discount?.isSpecial;
+  const isAddVat = discountType.includes('uniformed') || discountType.includes('national');
+
+  const discounted = Number((discountRate * -vatNet).toFixed(2));
+  if (isSpecial) {
+    vatNet = Number((vatNet + discounted).toFixed(2));
+    if (!isAddVat) {
+      vat = -vat;
+    }
   }
 
-  const totalAmount = subtotal + vat - discounted - voucherDiscounted + serviceCharge + togoCharge;
+  let serviceCharge = 0;
+  if (diningOption === 'FOR_HERE' && store?.serviceCharge && totalWithServiceChargeAmount > 0) {
+    serviceCharge = Number((vatNet * scRate).toFixed(2));
+  }
+
+  let totalAmount = vatNet + vat + serviceCharge + togoCharge;
+  if (isSpecial && !isAddVat) {
+    totalAmount -= vat;
+  }
 
   return {
     quantity,
-    subtotal: discount?.isSpecial ? totalOrderAmount : subtotal,
-    vat: discount?.isSpecial ? -(totalOrderAmount - subtotal) : vat,
+    subtotal,
+    vatNet,
+    vat,
     discounted,
     voucherDiscounted,
     serviceCharge,
@@ -454,33 +427,6 @@ export function getLast10Digits(phone: string) {
   }
 
   return null; // invalid phone number
-}
-
-export function resolvePromotion(
-  menuItemId: string = '',
-  itemPrice: number,
-  promos: Promotion[],
-): { promo: Promotion; finalPrice: number } {
-  const promo = promos
-    .filter(
-      (p) =>
-        p.isActive && (p.appliesTo === 'ALL' || (p.appliesTo === 'SELECTED' && p.menuItemIds.includes(menuItemId))),
-    )
-    .sort((a, b) => {
-      const aValue = a.discountType === 'PERCENTAGE' ? itemPrice * (a.discountValue / 100) : a.discountValue;
-      const bValue = b.discountType === 'PERCENTAGE' ? itemPrice * (b.discountValue / 100) : b.discountValue;
-      return bValue - aValue;
-    })?.[0];
-
-  return {
-    promo,
-    finalPrice:
-      promo?.discountType === 'PERCENTAGE'
-        ? Number((itemPrice - itemPrice * (promo.discountValue / 100)).toFixed(2))
-        : promo
-          ? Number((itemPrice - promo.discountValue).toFixed(2))
-          : itemPrice,
-  };
 }
 
 export function tryParseJSON(str: string) {
